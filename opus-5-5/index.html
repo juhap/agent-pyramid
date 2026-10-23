@@ -1,0 +1,1565 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raising the Great Pyramid</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --panel: rgba(30, 22, 14, 0.76);
+    --panel-solid: #1c150e;
+    --line: rgba(255, 232, 196, 0.14);
+    --line-soft: rgba(255, 232, 196, 0.08);
+    --ink: #f5ebd9;
+    --muted: #cbbb9f;
+    --faint: #9a8a70;
+    --accent: #e6a955;
+    --accent-ink: #2a1a08;
+    --water: #7fb2d9;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e9d6b4; color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  #scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+  .panel { background: var(--panel); backdrop-filter: blur(12px) saturate(1.15); -webkit-backdrop-filter: blur(12px) saturate(1.15);
+    border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 12px 32px rgba(40, 24, 8, 0.28); }
+
+  .hud { position: fixed; top: 16px; left: 16px; width: min(410px, calc(100vw - 32px)); padding: 16px 18px 17px; }
+  .eyebrow { font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .hud h1 { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 23px; line-height: 1.15; margin: 9px 0 9px; letter-spacing: -0.01em; }
+  .hud p { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--muted); }
+
+  .stats { position: fixed; top: 16px; right: 16px; width: 262px; padding: 12px 16px 10px; }
+  .stats h2 { margin: 2px 0 6px; font: 500 11px/1 'IBM Plex Mono', monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  .stat { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+  .stat:last-child { border-bottom: none; }
+  .stat span { font-size: 12.5px; color: var(--muted); }
+  .stat b { font: 500 14.5px 'IBM Plex Mono', monospace; color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meter { height: 4px; border-radius: 2px; background: var(--line-soft); margin: 4px 0 6px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: var(--accent); }
+
+  .bar { position: fixed; left: 16px; right: 16px; bottom: 16px; padding: 12px 14px 12px; }
+  .segments { display: flex; gap: 2px; height: 24px; }
+  .seg { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; cursor: pointer; border: none;
+    background: var(--line-soft); color: var(--faint); border-radius: 5px; padding: 0 7px; font: 500 11px/24px 'IBM Plex Sans', sans-serif; text-align: left; }
+  .seg:hover { color: var(--ink); background: rgba(255, 232, 196, 0.14); }
+  .seg.active { background: rgba(230, 169, 85, 0.30); color: var(--ink); }
+  .seg.past { color: var(--muted); }
+  #timeline { width: 100%; margin: 8px 0 6px; accent-color: var(--accent); height: 18px; cursor: pointer; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .group { display: flex; gap: 4px; align-items: center; }
+  .label { font: 500 10.5px 'IBM Plex Mono', monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--faint); margin: 0 4px 0 8px; }
+  .chip { appearance: none; border: 1px solid var(--line); background: rgba(255, 232, 196, 0.06); color: var(--ink);
+    font: 500 12.5px 'IBM Plex Sans', sans-serif; padding: 6px 11px; border-radius: 8px; cursor: pointer; line-height: 1.1; }
+  .chip:hover { background: rgba(255, 232, 196, 0.14); }
+  .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .chip:disabled { opacity: .4; cursor: default; }
+  .chip.play { min-width: 76px; font-weight: 600; }
+  .spacer { flex: 1; }
+  .note { font-size: 11.5px; color: var(--faint); }
+  .chip.plan { background: rgba(230, 169, 85, 0.16); border-color: rgba(230, 169, 85, 0.5); }
+
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(600px, 100vw); z-index: 10; overflow-y: auto;
+    background: var(--panel-solid); border-left: 1px solid var(--line); transform: translateX(102%); transition: transform .35s ease;
+    padding: 26px 30px 70px; box-shadow: -20px 0 50px rgba(0,0,0,.35); }
+  .drawer.open { transform: none; }
+  .drawer .close { position: sticky; top: 0; float: right; }
+  .drawer h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 650; font-size: 28px; margin: 4px 0 6px; line-height: 1.15; }
+  .drawer h3 { font-family: 'Fraunces', Georgia, serif; font-weight: 600; font-size: 19px; margin: 30px 0 8px; color: var(--ink); }
+  .drawer h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: 22px 0 6px; font-weight: 600; }
+  .drawer p, .drawer li { font-size: 14px; line-height: 1.62; color: var(--muted); }
+  .drawer strong { color: var(--ink); font-weight: 600; }
+  .drawer ol, .drawer ul { padding-left: 20px; }
+  .drawer .lede { font-size: 15px; color: var(--ink); }
+  .drawer table { width: 100%; border-collapse: collapse; margin: 10px 0 6px; font-size: 13px; }
+  .drawer th, .drawer td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line-soft); color: var(--muted); vertical-align: top; }
+  .drawer th { color: var(--faint); font-weight: 500; font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; }
+  .drawer td.n { font-family: 'IBM Plex Mono', monospace; color: var(--ink); text-align: right; white-space: nowrap; }
+  .drawer th.n { text-align: right; }
+  .callout { border-left: 3px solid var(--accent); padding: 4px 0 4px 14px; margin: 14px 0; }
+  .callout p { margin: 4px 0; color: var(--ink); }
+
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; font: 500 13px 'IBM Plex Mono', monospace; color: #6b5233; letter-spacing: .1em; pointer-events: none; }
+
+  body.record .hud, body.record .stats, body.record .bar, body.record .drawer { display: none; }
+  @media (max-width: 820px) {
+    .stats { display: none; }
+    .hud { padding: 12px 14px; }
+    .hud h1 { font-size: 18px; }
+    .hud p { font-size: 12.5px; }
+    .seg { font-size: 0; padding: 0; }
+    .note { display: none; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<div class="loading" id="loading">PREPARING THE SITE…</div>
+<canvas id="scene" tabindex="0"></canvas>
+
+<header class="hud panel" aria-live="polite">
+  <div class="eyebrow" id="phaseEyebrow">Step 1 of 8</div>
+  <h1 id="phaseTitle">Orient and lay out the square</h1>
+  <p id="phaseText"></p>
+</header>
+
+<aside class="stats panel">
+  <h2>Site status</h2>
+  <div class="stat"><span>Year of work</span><b id="sYear">0.0</b></div>
+  <div class="stat"><span>Height reached</span><b id="sHeight">0.0 m</b></div>
+  <div class="stat"><span>Stone volume laid</span><b id="sVol">0 %</b></div>
+  <div class="meter"><i id="sVolBar"></i></div>
+  <div class="stat"><span>Blocks placed (est.)</span><b id="sBlocks">0</b></div>
+  <div class="stat"><span>Courses (model)</span><b id="sCourse">0 / 99</b></div>
+  <div class="stat"><span>Rate needed</span><b id="sRate">–</b></div>
+  <div class="stat"><span>Workforce on site</span><b id="sWork">–</b></div>
+</aside>
+
+<footer class="bar panel">
+  <div class="segments" id="segments"></div>
+  <input type="range" id="timeline" min="0" max="1000" step="1" value="0" aria-label="Timeline">
+  <div class="row">
+    <div class="group">
+      <button class="chip play on" id="play">❚❚ Pause</button>
+    </div>
+    <div class="group" id="speeds"><span class="label">Speed</span></div>
+    <div class="group" id="cams"><span class="label">View</span></div>
+    <span class="note" id="note">People are drawn to scale (1.7 m). Choose “Follow team” to see them up close.</span>
+    <div class="spacer"></div>
+    <button class="chip plan" id="openPlan">Read the plan</button>
+  </div>
+</footer>
+
+<section class="drawer" id="plan" aria-label="The building plan">
+  <button class="chip close" id="closePlan">Close ✕</button>
+  <div class="eyebrow">From first principles</div>
+  <h2>How I would build the Great Pyramid</h2>
+  <p class="lede">The starting point: suitable limestone lies close to the site, and labour and materials are unlimited. The available tools are copper chisels, stone pounders, wooden levers, sledges, rope, water, mudbrick, cord and plumb line. There are no wheels on sand, no pulleys and no iron. The plan below comes from the geometry and the physics, not from any particular theory.</p>
+
+  <h3>1 · What has to be built</h3>
+  <table>
+    <tr><th>Quantity</th><th class="n">Value</th></tr>
+    <tr><td>Base side</td><td class="n">230.3 m</td></tr>
+    <tr><td>Height (original)</td><td class="n">146.6 m</td></tr>
+    <tr><td>Face slope</td><td class="n">51.8° (rise 7 : run 5½)</td></tr>
+    <tr><td>Volume (B²·H/3)</td><td class="n">≈ 2.59 million m³</td></tr>
+    <tr><td>Mass</td><td class="n">≈ 6 million t</td></tr>
+    <tr><td>Blocks</td><td class="n">≈ 2.3 million</td></tr>
+    <tr><td>Typical block</td><td class="n">≈ 1–1.5 m, ≈ 2.5 t</td></tr>
+    <tr><td>Courses</td><td class="n">≈ 210</td></tr>
+    <tr><td>Largest pieces (granite chamber beams)</td><td class="n">≈ 25–80 t</td></tr>
+  </table>
+
+  <h3>2 · The fact that shapes the whole plan</h3>
+  <p>A pyramid is mostly bottom. The volume below height <em>h</em> is 1 − (1 − h/H)³ of the total:</p>
+  <table>
+    <tr><th>Height</th><th class="n">% of height</th><th class="n">% of stone below</th></tr>
+    <tr><td>15 m</td><td class="n">10 %</td><td class="n">28 %</td></tr>
+    <tr><td>30 m</td><td class="n">20 %</td><td class="n">50 %</td></tr>
+    <tr><td>60 m</td><td class="n">41 %</td><td class="n">79 %</td></tr>
+    <tr><td>73 m (half)</td><td class="n">50 %</td><td class="n">88 %</td></tr>
+    <tr><td>100 m</td><td class="n">68 %</td><td class="n">97 %</td></tr>
+    <tr><td>132 m</td><td class="n">90 %</td><td class="n">99.9 %</td></tr>
+  </table>
+  <div class="callout"><p>So I would build two different systems. One heavy, high-capacity ramp serves the lower 60 m, where four-fifths of the stone goes. A light, cheap ramp serves the remaining fifth. The last 0.1 % is lifted by hand with levers.</p></div>
+
+  <h3>3 · Moving one block</h3>
+  <p>The block goes on a wooden sledge, and the sledge is dragged over a track of timber sleepers bedded in packed clay. A man walks in front pouring water on the track. Wet clay roughly halves the friction compared with dry sand, to a coefficient of about 0.25. I assume a person can keep up a pull of about 350–400 N for hours.</p>
+  <table>
+    <tr><th>Load (incl. sledge)</th><th>Surface</th><th class="n">Pull needed</th><th class="n">Haulers</th></tr>
+    <tr><td>2.8 t block</td><td>flat, wet</td><td class="n">6.9 kN</td><td class="n">≈ 18</td></tr>
+    <tr><td>2.8 t block</td><td>ramp 1 : 10</td><td class="n">9.6 kN</td><td class="n">≈ 26</td></tr>
+    <tr><td>2.8 t block</td><td>ramp 1 : 8</td><td class="n">10.2 kN</td><td class="n">≈ 27</td></tr>
+    <tr><td>44 t granite beam</td><td>ramp 1 : 10</td><td class="n">150 kN</td><td class="n">≈ 400</td></tr>
+    <tr><td>65 t granite beam</td><td>ramp 1 : 10</td><td class="n">220 kN</td><td class="n">≈ 590</td></tr>
+  </table>
+  <p>That gives a standard <strong>hauling team of about 26 people</strong>, which keeps the same size from the quarry floor to the top. A loaded team walks at about 0.5 m/s.</p>
+
+  <h3>4 · The schedule and the rate it demands</h3>
+  <table>
+    <tr><th>Stage</th><th class="n">Years</th><th class="n">Blocks</th><th class="n">Rate (10 h days)</th></tr>
+    <tr><td>Survey, levelling, quarry opening</td><td class="n">1.5</td><td class="n">–</td><td class="n">–</td></tr>
+    <tr><td>Lower 0–60 m (straight ramp)</td><td class="n">10.2</td><td class="n">1.83 M</td><td class="n">≈ 60 / h</td></tr>
+    <tr><td>Upper 60–132 m (spiral ramp)</td><td class="n">6.3</td><td class="n">0.47 M</td><td class="n">≈ 25 / h</td></tr>
+    <tr><td>Top, capstone</td><td class="n">0.6</td><td class="n">≈ 2 k</td><td class="n">by lever</td></tr>
+    <tr><td>Dressing casing, removing ramps</td><td class="n">1.4</td><td class="n">–</td><td class="n">–</td></tr>
+    <tr><td><strong>Total</strong></td><td class="n"><strong>≈ 20</strong></td><td class="n"><strong>2.3 M</strong></td><td class="n"></td></tr>
+  </table>
+  <p>Sixty blocks an hour is <strong>one block a minute</strong>. In the lower phase an average round trip is about 860 m up loaded, the same distance back empty, plus loading and handover. That takes roughly an hour, so about 60–65 teams must be on the move at any time, around 1,700 haulers.</p>
+
+  <h3>5 · Step by step</h3>
+
+  <h4>Step 1 — Find north and lay out the square</h4>
+  <p>Build a small circular wall with a perfectly level top to act as an artificial horizon. From its centre, mark where a bright star near the pole rises over the wall and where it sets. The bisector of those two marks points to true north. Peg out the 230 m square with stretched, pre-measured cords. Four equal sides <em>and</em> two equal diagonals guarantee right-angled corners. A 3-4-5 knotted cord checks each corner locally.</p>
+
+  <h4>Step 2 — Level with water</h4>
+  <p>Cut a grid of shallow trenches across the base and flood them. Water lies level, so a line scratched at the waterline on every trench wall gives the same height everywhere. Drain the trenches, cut the rock down to a fixed depth below the line, fill the trenches with stone and pave a flat platform. An outcrop in the middle can be left in place as part of the core, which saves stone.</p>
+
+  <h4>Step 3 — Quarry and roads</h4>
+  <p>Open the quarry a few hundred metres away and below the site. Crews free each block with copper chisels and pounders: they cut a channel around three sides, then split the base with wooden wedges. The waste chips are not wasted, because they become the fill for the ramps. A packed-clay road with timber sleepers runs from the quarry rim to the foot of the ramp. It is wetted constantly.</p>
+
+  <h4>Step 4 — The lower 60 m: one wide straight ramp</h4>
+  <p>The ramp starts at the middle of one face and runs straight out. It is 20 m wide at a 1 : 10 slope, built from quarry chips and mudbrick between retaining walls, with a sleeper track on top. Every time a course is finished, the ramp is raised by one course and lengthened by ten times that height. At 60 m it is about 600 m long and contains about 360,000 m³, roughly 14 % of the pyramid. It has three lanes: two for loaded sledges going up and one for empty sledges coming down. That gives about 90 teams an hour of capacity, comfortably above the 60 needed. The width also matters for the granite beams, which need hundreds of haulers on many parallel ropes.</p>
+  <p><strong>Why not extend it to the top?</strong> A 1 : 10 ramp to 146 m would be about 1.5 km long and hold about 2.1 million m³, nearly as much as the pyramid itself, and it would be unstable at that height. It stops where it stops paying off.</p>
+
+  <h4>Step 5 — Setting a course</h4>
+  <ul>
+    <li>On each new course, re-mark the centre from the course's own diagonals. The edge of the course is then set at <em>(remaining height) × 5½ ⁄ 7</em> from the centre. Every course is measured from the centre rather than from the course below, so errors cannot pile up.</li>
+    <li>Lay the <strong>outer ring first</strong>: fine casing blocks with their outer faces left rough and oversized. Next lay the backing stones, then fill the core <strong>from the far side back towards the arrival point</strong>, so that sledges never have to cross freshly set stone.</li>
+    <li>Final positioning uses levers and a thin gypsum slurry, which works as a lubricant while the block is nudged into place. The top of the course is then dressed flat for the next one.</li>
+  </ul>
+
+  <h4>Step 6 — Chambers and granite</h4>
+  <p>Passages and chambers are not dug out afterwards. They are built into the courses as the layers reach them, and simply left open. The granite beams of the King's Chamber, at about 43 m and above, arrive while the wide ramp is still in use. A 44 t beam needs about 400 haulers and a 65 t beam about 590.</p>
+
+  <h4>Step 7 — 60 m to 132 m: a ramp wrapped around the stepped core</h4>
+  <p>Above 60 m only a fifth of the stone remains, so a cheap ramp will do. Because the casing is still rough, each face is a staircase, and a ramp 6 m wide at a 1 : 8 slope can be built straight onto the steps. The pyramid carries it, so it needs only about 15,000 m³ of fill. It climbs around the faces about twice. At each corner a level landing gives room to lever the sledge through 90°. Loaded sledges use the inner lane and empty ones the outer lane. With one loaded lane and slow corners, capacity is about 25–30 blocks an hour. That is enough here, and it sets the pace of the upper phase.</p>
+
+  <h4>Step 8 — The last 14 m and the pyramidion</h4>
+  <p>Near the top the faces are too short for a ramp. The remaining stone is about 0.1 % of the total, a few thousand blocks. Each is raised by levering and cribbing: lift one end and slip in a timber shim, then lift the other end, and repeat. The block climbs the steps one at a time. The capstone (pyramidion) goes up in the same way and fixes the apex that all four faces must meet.</p>
+
+  <h4>Step 9 — Finish from the top down</h4>
+  <p>Starting at the apex, masons cut the rough casing faces back to one smooth plane. They stand on the steps and the ramp just below the finished line, so no scaffolding is ever needed. As the finished line moves down past each stretch of ramp, that stretch is dismantled. The last thing to disappear is the foot of the great ramp. Its fill is carted away or reused.</p>
+
+  <h3>6 · Who is on site</h3>
+  <table>
+    <tr><th>Trade</th><th class="n">People (peak)</th></tr>
+    <tr><td>Quarrying (≈ 600 blocks/day; a crew of 10 frees ≈ 1 a day)</td><td class="n">≈ 6,000</td></tr>
+    <tr><td>Hauling (≈ 65 teams × 26)</td><td class="n">≈ 1,700</td></tr>
+    <tr><td>Setting and dressing on the courses</td><td class="n">≈ 800</td></tr>
+    <tr><td>Ramp building and maintenance</td><td class="n">≈ 2,000</td></tr>
+    <tr><td>Water, copper tools, carpentry, rope</td><td class="n">≈ 1,500</td></tr>
+    <tr><td>Food, housing, medicine, administration</td><td class="n">≈ 6,000</td></tr>
+    <tr><td><strong>Total</strong></td><td class="n"><strong>≈ 18,000</strong></td></tr>
+  </table>
+  <p>Unlimited labour does not make things faster beyond a point. The real limits are geometric: how many teams fit on a ramp, how many setting crews fit on a course, and how fast the shrinking upper courses can be supplied.</p>
+
+  <h3>7 · What the animation simplifies</h3>
+  <ul>
+    <li>It uses 100 courses of 1.47 m instead of about 210 real courses of varying height.</li>
+    <li>Course blocks are drawn as a uniform grid about 1.6 m on a side. The hauled blocks are 1.1 × 0.9 × 1.25 m, which is about 2.8 t.</li>
+    <li>Only a representative number of teams is shown, and only part of the granite-beam crew.</li>
+    <li>Time is compressed and the haulers walk faster than real life. The order of events, the ramp geometry and the proportions are kept.</li>
+  </ul>
+</section>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ============================================================
+// Dimensions (metres)
+// ============================================================
+const BASE = 230.3, HB = BASE / 2, H = 146.6;
+const NC = 100, CH = H / NC;            // model courses
+const CORE_COURSES = NC - 1;            // last slot is the pyramidion
+const HTOP = CORE_COURSES * CH;         // top of the core courses
+const BL = 1.6;                         // nominal block length in the model
+const halfW = y => HB * (1 - y / H);
+const volFrac = y => 1 - Math.pow(1 - Math.min(Math.max(y, 0), H) / H, 3);
+
+const STRAIGHT_TOP = 60, STRAIGHT_RUN = 10, STRAIGHT_W = 20;
+const SPIRAL_END = 132, SPIRAL_RUN = 8, SPIRAL_W = 6, SPIRAL_DEPTH = 8;
+const BLOCKS_TOTAL = 2.3e6;
+
+// Quarry pit (south-east of the pyramid, below the plateau)
+const QD = 10, QX0 = 70, QX1 = 210, QZ0 = 660, QZ1 = 770, QRIM = 600, QWALL = 18;
+
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const smoothstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const rand = mulberry32(7);
+
+// ============================================================
+// Timeline
+// ============================================================
+const DURATION = 210; // seconds at 1x
+const T_SURVEY = [0, 0.035], T_LEVEL = [0.035, 0.075], T_BUILD = [0.075, 0.86], T_CAP = [0.86, 0.89], T_FINISH = [0.89, 0.975];
+
+// Build progress -> height: mostly proportional to stone volume, with extra time
+// around the granite chamber so the beam convoy can be watched.
+const NT = 2000, gTab = new Float64Array(NT + 1);
+(() => {
+  let acc = 0; const vt = volFrac(HTOP);
+  for (let i = 1; i <= NT; i++) {
+    const h = (i - 0.5) / NT * HTOP;
+    const dV = 3 * Math.pow(1 - h / H, 2) / H;
+    const d = 0.5 * dV / vt + 0.42 / HTOP + (h > 41 && h < 58 ? 0.09 / 17 : 0);
+    acc += d * HTOP / NT; gTab[i] = acc;
+  }
+  for (let i = 1; i <= NT; i++) gTab[i] /= acc;
+})();
+function hOfG(g) {
+  if (g <= 0) return 0; if (g >= 1) return HTOP;
+  let lo = 0, hi = NT;
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (gTab[m] <= g) lo = m; else hi = m; }
+  return (lo + (g - gTab[lo]) / (gTab[hi] - gTab[lo])) / NT * HTOP;
+}
+function gOfH(h) { const x = clamp01(h / HTOP) * NT, i = Math.min(NT - 1, Math.floor(x)); return gTab[i] + (gTab[i + 1] - gTab[i]) * (x - i); }
+const tOfH = h => T_BUILD[0] + gOfH(h) * (T_BUILD[1] - T_BUILD[0]);
+
+const STEPS = [
+  { key: 'survey', label: 'Survey', t0: T_SURVEY[0], t1: T_SURVEY[1],
+    title: 'Orient and lay out the square',
+    text: 'Before any stone moves, fix true north. Surveyors build a small circular wall as an artificial horizon, mark where a bright star near the pole rises over it and where it sets, and halve the angle between the two marks. The 230 m square is then pegged out with cords: four equal sides and two equal diagonals make the corners square.' },
+  { key: 'level', label: 'Level', t0: T_LEVEL[0], t1: T_LEVEL[1],
+    title: 'Level the bedrock with water',
+    text: 'A grid of shallow trenches is cut and flooded. Water lies level, so a line scratched at the waterline on every trench wall is a common reference height. The rock is cut down to that line, the trenches are filled, and a flat platform is paved. Meanwhile the quarry opens below the plateau.' },
+  { key: 'lower', label: 'Lower courses · straight ramp', t0: T_BUILD[0], t1: tOfH(41),
+    title: 'Lower courses on one wide straight ramp',
+    text: 'The lowest 60 m hold 80 % of the stone, so they get the main supply line: a ramp of quarry chips and mudbrick, 20 m wide at a 1 : 10 slope, raised one course at a time. Two lanes carry loaded sledges up and the middle lane brings empty ones down. Each 2.8 t load on a wetted sleeper track needs about 26 people. Every course is laid outer ring first, then filled from the far side back towards the ramp.' },
+  { key: 'granite', label: 'Granite beams', t0: tOfH(41), t1: tOfH(STRAIGHT_TOP),
+    title: 'Chamber level: granite beams',
+    text: 'While the wide ramp still reaches the working level, the heaviest pieces go up: granite beams for the King\'s Chamber. A 44 t beam needs about 400 haulers on many parallel ropes, which is why the ramp is 20 m wide. Only part of the crew is drawn. The chamber is left open in the courses as they rise around it.' },
+  { key: 'spiral', label: 'Upper courses · spiral ramp', t0: tOfH(STRAIGHT_TOP), t1: tOfH(SPIRAL_END),
+    title: 'Upper courses on a ramp around the steps',
+    text: 'A straight ramp to the top would need about as much material as the pyramid. Instead, a narrow ramp (6 m, 1 : 8) is built onto the stepped faces and wraps around the pyramid, using it as support. Corners are level landings where sledges are levered round. Only a fifth of the stone remains, so one loaded lane and one return lane are enough.' },
+  { key: 'top', label: 'Top', t0: tOfH(SPIRAL_END), t1: T_BUILD[1],
+    title: 'The last metres by lever',
+    text: 'Near the top the faces are too small for a ramp. The final ~14 m, about 0.1 % of the stone, is raised block by block with levers and timber cribbing. Crews lift one end, pack a shim under it, lift the other end and repeat, so each block climbs the steps of the core.' },
+  { key: 'cap', label: 'Capstone', t0: T_CAP[0], t1: T_CAP[1],
+    title: 'Setting the pyramidion',
+    text: 'The capstone is levered up the steps in the same way and set on the last course. It fixes the apex that all four casing faces must meet.' },
+  { key: 'finish', label: 'Finishing', t0: T_FINISH[0], t1: T_FINISH[1],
+    title: 'Dress the casing from the top down',
+    text: 'The casing blocks went in with every course, their outer faces left rough. Working down from the apex, masons cut them back to one smooth plane while standing on the steps and ramp just below. Each stretch of ramp is dismantled once the finished line has passed it, so no scaffolding is ever needed.' },
+  { key: 'done', label: 'Done', t0: T_FINISH[1], t1: 1,
+    title: 'The Great Pyramid',
+    text: 'About 2.3 million blocks and about 6 million tonnes, set in roughly twenty years: two ramps, wet sledge tracks, levers, cords and a great deal of organised labour.' },
+];
+
+function stateAt(T) {
+  const st = { T };
+  st.surveyP = clamp01((T - T_SURVEY[0]) / (T_SURVEY[1] - T_SURVEY[0]));
+  st.levelP = clamp01((T - T_LEVEL[0]) / (T_LEVEL[1] - T_LEVEL[0]));
+  st.capP = clamp01((T - T_CAP[0]) / (T_CAP[1] - T_CAP[0]));
+  st.finP = clamp01((T - T_FINISH[0]) / (T_FINISH[1] - T_FINISH[0]));
+  st.building = T >= T_BUILD[0] && T < T_BUILD[1];
+  st.h = T < T_BUILD[0] ? 0 : T >= T_BUILD[1] ? HTOP : hOfG((T - T_BUILD[0]) / (T_BUILD[1] - T_BUILD[0]));
+  st.K = Math.min(CORE_COURSES, Math.floor(st.h / CH + 1e-9));
+  st.frac = st.K >= CORE_COURSES ? 0 : st.h / CH - st.K;
+  st.yW = st.K * CH;
+  st.finishing = T >= T_FINISH[0];
+  st.casing = st.finishing ? H * (1 - st.finP) : H + 1;
+  st.rampH = st.finishing ? Math.min(STRAIGHT_TOP, st.casing) : (T < T_BUILD[0] ? 0 : Math.min(st.yW, STRAIGHT_TOP));
+  st.spiralLim = st.finishing ? Math.min(SPIRAL_END, st.casing) : (T < T_BUILD[0] ? 0 : Math.min(st.yW, SPIRAL_END));
+  st.step = STEPS.findIndex(s => T >= s.t0 && T < s.t1); if (st.step < 0) st.step = STEPS.length - 1;
+  // years
+  const v60 = volFrac(STRAIGHT_TOP), v132 = volFrac(SPIRAL_END);
+  if (T < T_BUILD[0]) st.year = 1.5 * T / T_BUILD[0];
+  else if (T < T_BUILD[1]) {
+    const h = st.h;
+    st.year = h <= STRAIGHT_TOP ? 1.5 + 10.2 * volFrac(h) / v60
+      : h <= SPIRAL_END ? 11.7 + 6.3 * (volFrac(h) - v60) / (v132 - v60)
+      : 18 + 0.4 * (h - SPIRAL_END) / (HTOP - SPIRAL_END);
+  } else if (T < T_FINISH[0]) st.year = 18.4 + 0.2 * st.capP;
+  else st.year = 18.6 + 1.4 * st.finP;
+  return st;
+}
+
+// ============================================================
+// Renderer, scene, camera
+// ============================================================
+const canvas = document.getElementById('scene');
+const RECORD = new URLSearchParams(location.search).has('record');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: RECORD });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.82;
+renderer.localClippingEnabled = true;
+
+const scene = new THREE.Scene();
+const HAZE = new THREE.Color('#e8d4b0');
+scene.fog = new THREE.Fog(HAZE, 1500, 5600);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.5, 9500);
+camera.position.set(760, 360, 1160);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(70, 10, 360);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.492;
+controls.minDistance = 3;
+controls.maxDistance = 3200;
+controls.autoRotateSpeed = 0.35;
+
+// Sky dome
+const sky = new THREE.Mesh(new THREE.SphereGeometry(7500, 32, 16), new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { top: { value: new THREE.Color('#4f86c0') }, mid: { value: new THREE.Color('#a8c7e2') }, horizon: { value: HAZE } },
+  vertexShader: `varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `uniform vec3 top; uniform vec3 mid; uniform vec3 horizon; varying vec3 vP;
+    void main(){ float h = max(vP.y, 0.0);
+      vec3 c = mix(horizon, mid, smoothstep(0.0, 0.10, h)); c = mix(c, top, smoothstep(0.10, 0.65, h));
+      gl_FragColor = vec4(c, 1.0);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+    }`
+}));
+sky.renderOrder = -1;
+scene.add(sky);
+
+// Lights
+scene.add(new THREE.HemisphereLight('#d6e4f2', '#9c7a50', 0.55));
+const sun = new THREE.DirectionalLight('#fff0d4', 3.2);
+const SUN_TGT = new THREE.Vector3(60, 0, 320);
+sun.position.copy(SUN_TGT).add(new THREE.Vector3(620, 640, 260));
+sun.target.position.copy(SUN_TGT);
+sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096);
+Object.assign(sun.shadow.camera, { left: -520, right: 520, top: 520, bottom: -520, near: 50, far: 2600 });
+sun.shadow.bias = -0.0004;
+sun.shadow.normalBias = 0.6;
+scene.add(sun, sun.target);
+
+// ============================================================
+// Textures
+// ============================================================
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+function canvasTex(size, draw) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso;
+  return t;
+}
+function speckle(g, s, base, n, amp) {
+  g.fillStyle = base; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < n; i++) {
+    const v = (Math.random() - 0.5) * amp;
+    g.fillStyle = v > 0 ? `rgba(255,255,255,${v})` : `rgba(0,0,0,${-v})`;
+    const r = 1 + Math.random() * 2.5; g.fillRect(Math.random() * s, Math.random() * s, r, r);
+  }
+}
+const sandTex = canvasTex(512, (g, s) => {
+  speckle(g, s, '#dcbd8d', 14000, 0.2);
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${150 + Math.random() * 60},${110 + Math.random() * 40},70,0.05)`; g.beginPath(); g.arc(Math.random() * s, Math.random() * s, 20 + Math.random() * 60, 0, 7); g.fill(); }
+});
+sandTex.repeat.set(700, 700);
+function blockTex(base, joint) {
+  return canvasTex(256, (g, s) => {
+    speckle(g, s, base, 6000, 0.18);
+    for (let i = 0; i < 14; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '255,255,255' : '90,70,40'},0.05)`; g.beginPath(); g.arc(Math.random() * s, Math.random() * s, 15 + Math.random() * 50, 0, 7); g.fill(); }
+    g.strokeStyle = joint; g.globalAlpha = 0.35; g.lineWidth = 16; g.strokeRect(0, 0, s, s);
+    g.globalAlpha = 1; g.lineWidth = 6; g.strokeRect(0, 0, s, s);
+  });
+}
+const neutralBlockTex = blockTex('#f1f1f1', '#8f8f8f');
+const brickTex = canvasTex(256, (g, s) => {
+  speckle(g, s, '#a47b52', 3000, 0.2);
+  g.strokeStyle = 'rgba(60,38,20,0.55)'; g.lineWidth = 3;
+  const rows = 8, rh = s / rows;
+  for (let r = 0; r < rows; r++) {
+    g.beginPath(); g.moveTo(0, r * rh); g.lineTo(s, r * rh); g.stroke();
+    for (let c = 0; c < 4; c++) { const x = c * s / 4 + (r % 2) * s / 8; g.beginPath(); g.moveTo(x, r * rh); g.lineTo(x, (r + 1) * rh); g.stroke(); }
+  }
+});
+
+// ============================================================
+// Ground
+// ============================================================
+function groundY(x, z) {
+  const ox = x < QX0 ? QX0 - x : x > QX1 ? x - QX1 : 0;
+  const tx = clamp01(1 - ox / QWALL);
+  let tz = 1;
+  if (z < QZ0) tz = clamp01(1 - (QZ0 - z) / (QZ0 - QRIM));
+  else if (z > QZ1) tz = clamp01(1 - (z - QZ1) / QWALL);
+  let y = -QD * Math.min(tx, tz);
+  const r = Math.hypot(x - 60, z - 300);
+  const k = smoothstep(950, 1700, r) * smoothstep(1500, 1150, x);
+  if (k > 0) y += k * (10 * Math.sin(x * 0.0042 + 1.3) * Math.cos(z * 0.0031) + 6 * Math.sin(x * 0.011 + z * 0.007) + 8);
+  return y;
+}
+{
+  const g = new THREE.PlaneGeometry(6400, 6400, 640, 640); g.rotateX(-Math.PI / 2);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setY(i, groundY(p.getX(i), p.getZ(i)));
+  g.computeVertexNormals();
+  const ground = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: sandTex, roughness: 1, color: '#f2e0bf' }));
+  ground.receiveShadow = true;
+  scene.add(ground);
+  // Nile valley to the east
+  const fields = new THREE.Mesh(new THREE.PlaneGeometry(1300, 6400).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#7c8f4a' }));
+  fields.position.set(2250, 0.3, 0); scene.add(fields);
+  const river = new THREE.Mesh(new THREE.PlaneGeometry(170, 6400).rotateX(-Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#5f8fa8' }));
+  river.position.set(2300, 0.5, 0); scene.add(river);
+}
+
+// ============================================================
+// Shared helpers
+// ============================================================
+const UP = new THREE.Vector3(0, 1, 0);
+const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3();
+const _X = new THREE.Vector3(), _Y = new THREE.Vector3(), _Z = new THREE.Vector3();
+// Oriented box: local z along f (3D), local y roughly up.
+function poseMatrix(m, cx, cy, cz, f, sx, sy, sz) {
+  _Z.copy(f).normalize();
+  _X.crossVectors(UP, _Z); if (_X.lengthSq() < 1e-8) _X.set(1, 0, 0); _X.normalize();
+  _Y.crossVectors(_Z, _X);
+  m.makeBasis(_X.multiplyScalar(sx), _Y.multiplyScalar(sy), _Z.multiplyScalar(sz));
+  m.setPosition(cx, cy, cz);
+  return m;
+}
+const unitBox = new THREE.BoxGeometry(1, 1, 1);
+const stoneMat = new THREE.MeshStandardMaterial({ map: neutralBlockTex, roughness: 0.92 });
+const rampMat = new THREE.MeshStandardMaterial({ map: brickTex, roughness: 1, side: THREE.DoubleSide });
+const woodMat = new THREE.MeshLambertMaterial({ color: '#6e4a2a' });
+const COL = {
+  casing: new THREE.Color('#ece2cb'), core: new THREE.Color('#cdb487'), granite: new THREE.Color('#b0645a'),
+  quarry: new THREE.Color('#d9c59c'), white: new THREE.Color('#f4efe4'), ochre: new THREE.Color('#c0782f'), blue: new THREE.Color('#3d5f8a'),
+};
+
+// ============================================================
+// Base platform, survey cords, levelling trenches
+// ============================================================
+const platform = new THREE.Mesh(new THREE.BoxGeometry(BASE + 8, 0.5, BASE + 8), new THREE.MeshStandardMaterial({ color: '#ddd2bb', roughness: 0.95 }));
+platform.position.y = -0.17; platform.receiveShadow = true; platform.visible = false; scene.add(platform);
+
+const cordMat = new THREE.MeshBasicMaterial({ color: '#8a3518' });
+const corners = [[-HB, HB], [HB, HB], [HB, -HB], [-HB, -HB]];
+const cords = [];
+for (let i = 0; i < 4; i++) cords.push({ a: corners[i], b: corners[(i + 1) % 4], mesh: new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 1), cordMat) });
+cords.push({ a: corners[0], b: corners[2], mesh: new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 1), cordMat), diag: true });
+cords.push({ a: corners[1], b: corners[3], mesh: new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.12, 1), cordMat), diag: true });
+cords.forEach(c => { c.mesh.visible = false; scene.add(c.mesh); });
+function setCord(c, p, y) {
+  if (p <= 0) { c.mesh.visible = false; return; }
+  const [ax, az] = c.a, [bx, bz] = c.b, len = Math.hypot(bx - ax, bz - az) * p;
+  const dx = (bx - ax) / Math.hypot(bx - ax, bz - az), dz = (bz - az) / Math.hypot(bx - ax, bz - az);
+  c.mesh.visible = true; c.mesh.scale.set(1, 1, len);
+  c.mesh.position.set(ax + dx * len / 2, y, az + dz * len / 2);
+  c.mesh.rotation.y = Math.atan2(dx, dz);
+}
+const horizonWall = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 1.5, 48, 1, true), rampMat);
+horizonWall.position.y = 0.75; horizonWall.visible = false; scene.add(horizonWall);
+const stakes = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.25, 0.25, 3, 6), woodMat, 4);
+corners.forEach(([x, z], i) => { _m.makeTranslation(x, 1.5, z); stakes.setMatrixAt(i, _m); });
+stakes.visible = false; scene.add(stakes);
+
+const trenchMat = new THREE.MeshStandardMaterial({ color: '#4f8db5', roughness: 0.15, metalness: 0.1, emissive: '#16364a', emissiveIntensity: 0.4 });
+const TRENCH_N = 11, trenches = [];
+for (let i = 0; i < TRENCH_N; i++) {
+  const c = -HB + i * BASE / (TRENCH_N - 1);
+  for (const axis of ['x', 'z']) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.14, 1), trenchMat); m.visible = false; scene.add(m);
+    trenches.push({ c, axis, mesh: m });
+  }
+}
+
+// ============================================================
+// Pyramid: completed courses (one slab each) + the active course (instanced blocks)
+// ============================================================
+const sideMat = new THREE.MeshStandardMaterial({ map: neutralBlockTex, color: COL.casing, roughness: 0.93 });
+const topMat = new THREE.MeshStandardMaterial({ map: neutralBlockTex, color: COL.core, roughness: 0.95 });
+const slabs = [];
+for (let k = 0; k < CORE_COURSES; k++) {
+  const y0 = k * CH, a = halfW(y0 + CH);
+  const g = new THREE.BoxGeometry(2 * a, CH, 2 * a); g.translate(0, y0 + CH / 2, 0);
+  const p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv, off = (k % 2) * 0.5;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
+    if (Math.abs(n.getY(i)) > 0.5) uv.setXY(i, x / BL, z / BL);
+    else if (Math.abs(n.getX(i)) > 0.5) uv.setXY(i, z / BL + off, (y - y0) / CH);
+    else uv.setXY(i, x / BL + off, (y - y0) / CH);
+  }
+  const mesh = new THREE.Mesh(g, [sideMat, sideMat, topMat, topMat, sideMat, sideMat]);
+  mesh.castShadow = mesh.receiveShadow = true; mesh.visible = false;
+  scene.add(mesh); slabs.push(mesh);
+}
+
+const ACT_MAX = Math.pow(Math.round(2 * halfW(CH) / BL) + 1, 2);
+const act = { mesh: new THREE.InstancedMesh(unitBox, stoneMat, ACT_MAX), items: [], total: 0, K: -1, placed: 0 };
+act.mesh.castShadow = act.mesh.receiveShadow = true; act.mesh.frustumCulled = false; act.mesh.count = 0;
+act.mesh.setColorAt(0, COL.core);
+scene.add(act.mesh);
+
+// ============================================================
+// Spiral ramp centre line (precomputed): starts on the south face at 60 m and climbs anticlockwise
+// ============================================================
+const SP = [];
+(() => {
+  const xz = (face, u, d) => face === 0 ? [u, d] : face === 1 ? [d, -u] : face === 2 ? [-u, -d] : [-d, u];
+  let y = STRAIGHT_TOP, face = 0, u = 0; const ds = 2;
+  while (y <= SPIRAL_END + 1e-6) {
+    const d = halfW(y) + SPIRAL_W / 2; const [x, z] = xz(face, u, d);
+    SP.push({ x, y, z, corner: false });
+    let un = u + ds; const yn = y + ds / SPIRAL_RUN; const dn = halfW(yn) + SPIRAL_W / 2;
+    if (un >= dn) {
+      const f = clamp01((dn - u) / ds), yc = y + f * ds / SPIRAL_RUN, dc = halfW(yc) + SPIRAL_W / 2;
+      const [cx, cz] = xz(face, dc, dc);
+      SP.push({ x: cx, y: yc, z: cz, corner: true });
+      face = (face + 1) % 4; un = -dc + (un - dn);
+    }
+    u = un; y = yn;
+  }
+})();
+function spiralAt(y) { // interpolated centre-line point at height y
+  if (y <= SP[0].y) return { ...SP[0] };
+  for (let i = 1; i < SP.length; i++) if (SP[i].y >= y) {
+    const a = SP[i - 1], b = SP[i], t = (y - a.y) / Math.max(1e-6, b.y - a.y);
+    return { x: a.x + (b.x - a.x) * t, y, z: a.z + (b.z - a.z) * t };
+  }
+  return { ...SP[SP.length - 1] };
+}
+// Spiral ramp blocks
+const spiral = { tops: [], mesh: null };
+{
+  const mats = [];
+  const f = new THREE.Vector3();
+  for (let i = 0; i < SP.length - 1; i++) {
+    const a = SP[i], b = SP[i + 1];
+    f.set(b.x - a.x, b.y - a.y, b.z - a.z); const len = f.length();
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, cz = (a.z + b.z) / 2;
+    mats.push(poseMatrix(new THREE.Matrix4(), cx, cy - SPIRAL_DEPTH / 2, cz, f, SPIRAL_W, SPIRAL_DEPTH, len + 0.5));
+    spiral.tops.push(Math.max(a.y, b.y));
+    if (b.corner) {
+      mats.push(new THREE.Matrix4().makeScale(SPIRAL_W, SPIRAL_DEPTH, SPIRAL_W).setPosition(b.x, b.y - SPIRAL_DEPTH / 2, b.z));
+      spiral.tops.push(b.y);
+    }
+  }
+  spiral.mesh = new THREE.InstancedMesh(unitBox, rampMat, mats.length);
+  mats.forEach((m, i) => spiral.mesh.setMatrixAt(i, m));
+  spiral.mesh.castShadow = spiral.mesh.receiveShadow = true; spiral.mesh.frustumCulled = false; spiral.mesh.count = 0;
+  scene.add(spiral.mesh);
+}
+function setSpiral(lim) {
+  if (lim <= STRAIGHT_TOP + 0.01) { spiral.mesh.count = 0; return; }
+  let n = 0; while (n < spiral.tops.length && spiral.tops[n] <= lim + 0.01) n++;
+  spiral.mesh.count = n;
+}
+
+// ============================================================
+// Straight ramp (rebuilt whenever its height changes)
+// ============================================================
+const rampGeo = new THREE.BufferGeometry();
+const rampPos = new Float32Array(6 * 3 * 3), rampUV = new Float32Array(6 * 3 * 2);
+rampGeo.setAttribute('position', new THREE.BufferAttribute(rampPos, 3));
+rampGeo.setAttribute('uv', new THREE.BufferAttribute(rampUV, 2));
+const rampMesh = new THREE.Mesh(rampGeo, rampMat);
+rampMesh.castShadow = rampMesh.receiveShadow = true; rampMesh.frustumCulled = false; rampMesh.visible = false;
+scene.add(rampMesh);
+let rampHCur = -1;
+function setRamp(hr) {
+  if (Math.abs(hr - rampHCur) < 1e-4) return; rampHCur = hr;
+  if (hr < 0.05) { rampMesh.visible = false; return; }
+  rampMesh.visible = true;
+  const a = halfW(hr), fz = a + STRAIGHT_RUN * hr, xl = -STRAIGHT_W / 2, xr = STRAIGHT_W / 2;
+  const TL = [xl, hr, a], TR = [xr, hr, a], FL = [xl, 0, fz], FR = [xr, 0, fz], BL_ = [xl, 0, HB], BR = [xr, 0, HB];
+  const tris = [[TL, FL, FR, 'top'], [TL, FR, TR, 'top'], [TL, BL_, FL, 'side'], [TR, FR, BR, 'side'], [TL, TR, BR, 'back'], [TL, BR, BL_, 'back']];
+  let p = 0, q = 0;
+  for (const [A, B, C, kind] of tris) for (const v of [A, B, C]) {
+    rampPos[p++] = v[0]; rampPos[p++] = v[1]; rampPos[p++] = v[2];
+    if (kind === 'top') { rampUV[q++] = v[0] / 4; rampUV[q++] = v[2] / 4; }
+    else if (kind === 'side') { rampUV[q++] = v[2] / 4; rampUV[q++] = v[1] / 4; }
+    else { rampUV[q++] = v[0] / 4; rampUV[q++] = v[1] / 4; }
+  }
+  rampGeo.attributes.position.needsUpdate = true; rampGeo.attributes.uv.needsUpdate = true;
+  rampGeo.computeVertexNormals(); rampGeo.computeBoundingSphere();
+}
+
+// ============================================================
+// Casing (smooth faces revealed top-down) and pyramidion
+// ============================================================
+const casingPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -H - 1);
+const casing = (() => {
+  const s = HB * 1.004, A = [0, H, 0];
+  const v = [[-s, 0, s], [s, 0, s], A, [s, 0, s], [s, 0, -s], A, [s, 0, -s], [-s, 0, -s], A, [-s, 0, -s], [-s, 0, s], A].flat();
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(v, 3)); g.computeVertexNormals();
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: '#f1e8d4', roughness: 0.55, clippingPlanes: [casingPlane], clipShadows: true }));
+  m.castShadow = m.receiveShadow = true; m.visible = false; scene.add(m); return m;
+})();
+const PYR_R = halfW(HTOP), PYR_H = H - HTOP;
+const pyramidion = new THREE.Mesh(new THREE.ConeGeometry(PYR_R * Math.SQRT2, PYR_H, 4).rotateY(Math.PI / 4), new THREE.MeshStandardMaterial({ color: '#fbf6ea', roughness: 0.4 }));
+pyramidion.castShadow = true; pyramidion.visible = false; scene.add(pyramidion);
+function pyramidionPos(p, out) { // levered up the steps from the end of the spiral ramp to the apex
+  const E = SP[SP.length - 1], N = Math.max(1, Math.round((HTOP - E.y) / CH));
+  const q = clamp01(p) * N, i = Math.min(N - 1, Math.floor(q)), f = q - i;
+  const y = E.y + (HTOP - E.y) * (i + Math.min(1, f * 2)) / N;
+  const hf = (i + Math.max(0, f * 2 - 1)) / N;
+  out.set(E.x * (1 - hf), y, E.z * (1 - hf));
+  return out;
+}
+
+// ============================================================
+// Quarry stockpile
+// ============================================================
+const quarryBlocks = new THREE.InstancedMesh(unitBox, stoneMat, 160);
+{
+  let n = 0;
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 20 && n < 160; c++) {
+    const x = 84 + c * 6.2 + (r % 2) * 2, z = 690 + r * 9;
+    if (Math.abs(x - 140) < 12 || rand() < 0.25) continue;
+    _m.compose(new THREE.Vector3(x, -QD + 0.45, z), _q.setFromAxisAngle(UP, (rand() - 0.5) * 0.2), _s.set(1.15, 0.9, 1.3));
+    quarryBlocks.setMatrixAt(n, _m); quarryBlocks.setColorAt(n, COL.quarry.clone().offsetHSL(0, 0, (rand() - 0.5) * 0.06)); n++;
+  }
+  quarryBlocks.count = n; quarryBlocks.castShadow = true; quarryBlocks.frustumCulled = false;
+  scene.add(quarryBlocks);
+}
+
+// ============================================================
+// People (instanced stick figures), sledges and ropes
+// ============================================================
+class Figures {
+  constructor(max) {
+    this.max = max;
+    const limbGeo = new THREE.CylinderGeometry(0.06, 0.06, 1, 5, 1, true); limbGeo.translate(0, 0.5, 0);
+    const skin = new THREE.MeshLambertMaterial({ color: '#4b2d1a' });
+    this.limbs = new THREE.InstancedMesh(limbGeo, skin, max * 6);
+    this.heads = new THREE.InstancedMesh(new THREE.SphereGeometry(0.14, 8, 6), skin, max);
+    this.kilts = new THREE.InstancedMesh(new THREE.ConeGeometry(0.24, 0.44, 8, 1, true), new THREE.MeshLambertMaterial({ color: '#ffffff', side: THREE.DoubleSide }), max);
+    this.kilts.setColorAt(0, COL.white);
+    for (const m of [this.limbs, this.heads, this.kilts]) { m.frustumCulled = false; m.count = 0; scene.add(m); }
+    this.a = new THREE.Vector3(); this.b = new THREE.Vector3(); this.d = new THREE.Vector3();
+    this.hip = new THREE.Vector3(); this.neck = new THREE.Vector3(); this.one = new THREE.Vector3(1, 1, 1);
+  }
+  begin() { this.li = 0; this.n = 0; }
+  seg(a, b) {
+    if (this.li >= this.max * 6) return;
+    this.d.subVectors(b, a); const len = this.d.length(); if (len < 1e-5) return;
+    this.d.divideScalar(len); _q.setFromUnitVectors(UP, this.d); _s.set(1, len, 1);
+    _m.compose(a, _q, _s); this.limbs.setMatrixAt(this.li++, _m);
+  }
+  // (x,y,z) feet position, (fx,fz) horizontal facing (unit)
+  add(x, y, z, fx, fz, kind, phase, lean = 0.08, kilt = COL.white) {
+    if (this.n >= this.max) return;
+    const rx = -fz, rz = fx;
+    const walking = kind === 'haul' || kind === 'drag' || kind === 'walk' || kind === 'pour' || kind === 'oversee';
+    const sw = walking ? Math.sin(phase) * 0.45 : 0.2;
+    const bob = walking ? Math.abs(Math.cos(phase)) * 0.04 : 0;
+    let L = lean;
+    if (kind === 'lever') L = lean + Math.sin(phase) * 0.28;
+    if (kind === 'hammer') L = lean + Math.sin(phase) * 0.08;
+    const hipY = y + 0.9 + bob - (kind === 'lever' ? 0.1 : 0), leg = 0.92;
+    const { a, b, hip, neck } = this;
+    hip.set(x, hipY, z);
+    for (const side of [-1, 1]) {
+      const ang = walking ? sw * side : 0.2 * side;
+      a.set(x + rx * 0.1 * side, hipY, z + rz * 0.1 * side);
+      b.set(a.x + fx * Math.sin(ang) * leg, hipY - Math.cos(ang) * leg, a.z + fz * Math.sin(ang) * leg);
+      this.seg(a, b);
+    }
+    const dx = fx * Math.sin(L), dy = Math.cos(L), dz = fz * Math.sin(L);
+    neck.set(x + dx * 0.62, hipY + dy * 0.62, z + dz * 0.62);
+    this.seg(hip, neck);
+    _m.makeTranslation(neck.x + dx * 0.18, neck.y + dy * 0.18, neck.z + dz * 0.18); this.heads.setMatrixAt(this.n, _m);
+    _m.makeTranslation(x, hipY - 0.16, z); this.kilts.setMatrixAt(this.n, _m); this.kilts.setColorAt(this.n, kilt);
+    let hx = 0, hy = 0, hz = 0;
+    for (const side of [-1, 1]) {
+      const sx = neck.x - dx * 0.07 + rx * 0.18 * side, sy = neck.y - dy * 0.07, sz = neck.z - dz * 0.07 + rz * 0.18 * side;
+      let af = 0.05, au = -0.62, ar = 0;
+      switch (kind) {
+        case 'haul': af = 0.48; au = -0.36; break;
+        case 'drag': af = 0.42; au = -0.44; break;
+        case 'pour': af = 0.5; au = 0.12; ar = -side * 0.1; break;
+        case 'walk': { const t = Math.sin(phase) * 0.5 * side; af = Math.sin(t) * 0.62; au = -Math.cos(t) * 0.62; break; }
+        case 'oversee': if (side > 0) { af = 0.45; au = 0.4; } else { const t = Math.sin(phase) * 0.4; af = Math.sin(t) * 0.62; au = -Math.cos(t) * 0.62; } break;
+        case 'call': if (side > 0) { af = 0.2; au = 0.6; } else { af = 0.3; au = 0.3 + 0.2 * Math.sin(phase * 2); } break;
+        case 'hammer': { const k = Math.pow(0.5 + 0.5 * Math.sin(phase), 2), c = 0.35 + 2.2 * k; af = Math.sin(c) * 0.62; au = -Math.cos(c) * 0.62; ar = -side * 0.12; break; }
+        case 'lever': af = 0.32; au = -0.52; ar = -side * 0.1; break;
+      }
+      a.set(sx, sy, sz); b.set(sx + fx * af + rx * ar, sy + au, sz + fz * af + rz * ar);
+      this.seg(a, b);
+      hx += b.x / 2; hy += b.y / 2; hz += b.z / 2;
+    }
+    if (kind === 'lever') { a.set(hx - fx * 0.25, hy + 0.3, hz - fz * 0.25); b.set(x + fx * 1.8, y + 0.2, z + fz * 1.8); this.seg(a, b); }
+    if (kind === 'hammer') { a.set(hx, hy, hz); b.set(hx + (hx - neck.x) * 0.5, hy + (hy - neck.y + 0.3) * 0.5, hz + (hz - neck.z) * 0.5); this.seg(a, b); }
+    this.n++;
+  }
+  end() {
+    this.limbs.count = this.li; this.heads.count = this.n; this.kilts.count = this.n;
+    this.limbs.instanceMatrix.needsUpdate = true; this.heads.instanceMatrix.needsUpdate = true;
+    this.kilts.instanceMatrix.needsUpdate = true; if (this.kilts.instanceColor) this.kilts.instanceColor.needsUpdate = true;
+  }
+}
+const figs = new Figures(2600);
+
+class Ropes {
+  constructor(max) {
+    this.max = max; this.pos = new Float32Array(max * 6);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
+    this.lines = new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#6a4a26' }));
+    this.lines.frustumCulled = false; scene.add(this.lines);
+  }
+  begin() { this.n = 0; }
+  add(a, b) { if (this.n >= this.max) return; const i = this.n++ * 6; this.pos.set([a.x, a.y, a.z, b.x, b.y, b.z], i); }
+  end() { this.lines.geometry.setDrawRange(0, this.n * 2); this.lines.geometry.attributes.position.needsUpdate = true; }
+}
+const ropes = new Ropes(4000);
+
+const sledgeMesh = new THREE.InstancedMesh(unitBox, woodMat, 90); sledgeMesh.frustumCulled = false; scene.add(sledgeMesh);
+const cargoMesh = new THREE.InstancedMesh(unitBox, stoneMat, 90); cargoMesh.frustumCulled = false; cargoMesh.castShadow = true; scene.add(cargoMesh);
+cargoMesh.setColorAt(0, COL.core);
+let nSledge = 0, nCargo = 0;
+
+// ============================================================
+// Haul paths
+// ============================================================
+class Path {
+  constructor(pts) {
+    const P = [];
+    for (const p of pts) { const l = P[P.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y, p.z - l.z) > 0.05) P.push(p); }
+    if (P.length === 1) P.push({ ...P[0], z: P[0].z + 0.1 });
+    const n = this.n = P.length;
+    this.x = new Float32Array(n); this.y = new Float32Array(n); this.z = new Float32Array(n); this.sp = new Float32Array(n); this.cum = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      this.x[i] = P[i].x; this.y[i] = P[i].y; this.z[i] = P[i].z; this.sp[i] = P[i].sp || 0;
+      if (i) this.cum[i] = this.cum[i - 1] + Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y, P[i].z - P[i - 1].z);
+    }
+    this.L = this.cum[n - 1];
+  }
+  sample(s, out, tan) { // returns lane blend parameter; extrapolates beyond the ends
+    const { cum, n } = this; let i;
+    if (s <= 0) i = 0; else if (s >= this.L) i = n - 2;
+    else { let lo = 0, hi = n - 1; while (hi - lo > 1) { const m = (lo + hi) >> 1; if (cum[m] <= s) lo = m; else hi = m; } i = lo; }
+    const sl = cum[i + 1] - cum[i] || 1e-6, t = (s - cum[i]) / sl;
+    const dx = this.x[i + 1] - this.x[i], dy = this.y[i + 1] - this.y[i], dz = this.z[i + 1] - this.z[i];
+    out.set(this.x[i] + dx * t, this.y[i] + dy * t, this.z[i] + dz * t);
+    tan.set(dx / sl, dy / sl, dz / sl);
+    return this.sp[i] + (this.sp[i + 1] - this.sp[i]) * clamp01(t);
+  }
+}
+// Common route for the current working level yW: quarry floor -> rim -> ramp foot -> up -> (spiral) -> working level.
+function routePoints(yW) {
+  const hr = Math.min(yW, STRAIGHT_TOP), a = halfW(hr), footZ = a + STRAIGHT_RUN * hr;
+  const pts = [
+    { x: 140, y: -QD, z: 755 }, { x: 140, y: -QD, z: QZ0 }, { x: 140, y: 0, z: QRIM },
+    { x: 30, y: 0, z: QRIM }, { x: 0, y: 0, z: footZ + 30 }, { x: 0, y: 0, z: footZ },
+  ];
+  if (yW <= STRAIGHT_TOP + 1e-6) { pts.push({ x: 0, y: hr, z: a }); return pts; }
+  const s0 = SP[0];
+  pts.push({ x: 0, y: hr - 2.3, z: s0.z + 20 });
+  pts.push({ x: s0.x, y: s0.y, z: s0.z, sp: 1 });
+  const lim = Math.min(yW, SPIRAL_END);
+  for (let i = 1; i < SP.length; i++) {
+    if (SP[i].y <= lim) pts.push({ x: SP[i].x, y: SP[i].y, z: SP[i].z, sp: 1 });
+    else { const e = spiralAt(lim); pts.push({ ...e, sp: 1 }); break; }
+  }
+  return pts;
+}
+// Lanes: lateral offsets from the centre line on the straight ramp (g) and on the spiral (s).
+const LANES = [{ g: -6, s: -1.5 }, { g: 6, s: -1.5 }, { g: 0, s: 1.5 }];
+function laneLat(lane, sp) { const L = LANES[lane]; return sp <= 1 ? L.g + (L.s - L.g) * sp : L.s * (1 - (Math.min(sp, 2) - 1)); }
+
+let route = [], routeYW = -1;
+function pickTarget(yW) {
+  if (!act.total || yW > SPIRAL_END + 0.01) return null;
+  const idx = Math.min(act.total - 1, act.placed + Math.floor(rand() * Math.min(80, act.total)));
+  const it = act.items[idx];
+  return { x: it.x + (rand() - 0.5) * 2, y: yW, z: it.z + (rand() - 0.5) * 2, sp: 2 };
+}
+function teamPath(team) {
+  const t = pickTarget(routeYW);
+  return new Path(t ? route.concat([t]) : route);
+}
+
+const teams = [];
+const TEAM_COUNTS = [18, 18, 16];
+TEAM_COUNTS.forEach((n, lane) => { for (let i = 0; i < n; i++) teams.push({ lane, ret: lane === 2, u: (i + lane * 0.37) / n, walked: rand() * 100, path: null, pos: new THREE.Vector3(), fwd: new THREE.Vector3(0, 0, -1), visible: false }); });
+
+const _P = new THREE.Vector3(), _T = new THREE.Vector3(), _P2 = new THREE.Vector3(), _T2 = new THREE.Vector3();
+const _f3 = new THREE.Vector3(), _prev = new THREE.Vector3(), _hand = new THREE.Vector3();
+// Draws one sledge with its crew. o: {path, s, dir, lane, walked, ropes:[lat], perRope, firstD, gap, kind, lean, cargo, pourers:[lat], overseer, rider, out}
+function drawTeam(o) {
+  const sp0 = o.path.sample(o.s, _P, _T);
+  const lat0 = laneLat(o.lane, sp0);
+  let hx = _T.x, hz = _T.z; const hl = Math.hypot(hx, hz) || 1; hx /= hl; hz /= hl;
+  const fx = hx * o.dir, fz = hz * o.dir, wrx = -fz, wrz = fx;
+  const cx = _P.x - hz * lat0, cy = _P.y, cz = _P.z + hx * lat0;
+  const big = o.cargo === 'beam';
+  _f3.set(_T.x * o.dir, _T.y * o.dir, _T.z * o.dir);
+  sledgeMesh.setMatrixAt(nSledge++, poseMatrix(_m, cx, cy + (big ? 0.2 : 0.15), cz, _f3, big ? 2.6 : 1.3, big ? 0.4 : 0.3, big ? 9.6 : 2.4));
+  if (o.cargo) {
+    if (big) { cargoMesh.setMatrixAt(nCargo, poseMatrix(_m, cx, cy + 1.1, cz, _f3, 1.4, 1.4, 8)); cargoMesh.setColorAt(nCargo++, COL.granite); }
+    else { cargoMesh.setMatrixAt(nCargo, poseMatrix(_m, cx, cy + 0.75, cz, _f3, 1.1, 0.9, 1.25)); cargoMesh.setColorAt(nCargo++, COL.core); }
+  }
+  if (o.out) { o.out.pos.set(cx, cy, cz); o.out.fwd.set(fx, 0, fz); }
+  const front = big ? 4.9 : 1.25;
+  const place = (d, lat, cb) => {
+    const spj = o.path.sample(o.s + o.dir * d, _P2, _T2);
+    let tx = _T2.x, tz = _T2.z; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
+    const ffx = tx * o.dir, ffz = tz * o.dir, lj = laneLat(o.lane, spj);
+    cb(_P2.x - tz * lj - ffz * lat, _P2.y, _P2.z + tx * lj + ffx * lat, ffx, ffz);
+  };
+  for (const rl of o.ropes) {
+    _prev.set(cx + fx * front + wrx * Math.sign(rl) * Math.min(Math.abs(rl), 0.4), cy + 0.5, cz + fz * front + wrz * Math.sign(rl) * Math.min(Math.abs(rl), 0.4));
+    for (let j = 0; j < o.perRope; j++) {
+      const d = o.firstD + j * o.gap;
+      place(d, rl, (x, y, z, ffx, ffz) => {
+        figs.add(x, y, z, ffx, ffz, o.kind, (o.walked + d) * 4.0 + (rl > 0 ? Math.PI : 0) + j * 0.35, o.lean);
+        _hand.set(x + ffx * 0.42, y + 1.2, z + ffz * 0.42);
+        ropes.add(_prev, _hand); _prev.copy(_hand);
+      });
+    }
+  }
+  for (const pl of (o.pourers || [])) place(front + 0.8, pl, (x, y, z, ffx, ffz) => figs.add(x, y, z, ffx, ffz, 'pour', o.walked * 4.0 + pl, 0.05));
+  if (o.overseer) place(o.firstD + o.perRope * o.gap * 0.45, 2.4, (x, y, z, ffx, ffz) => figs.add(x, y, z, ffx, ffz, 'oversee', o.walked * 4.0 + 1, 0.04, COL.ochre));
+  if (o.rider) figs.add(cx, cy + 1.8, cz, fx, fz, 'call', o.walked * 2.0, 0.0, COL.blue);
+}
+
+// ============================================================
+// Active course construction
+// ============================================================
+function entryPoint(yW, a) {
+  if (yW < STRAIGHT_TOP - 1e-6) return { x: 0, z: a };
+  const e = spiralAt(Math.min(yW, SPIRAL_END)); return { x: e.x, z: e.z };
+}
+function buildActive(K) {
+  act.K = K; act.items = []; act.total = 0; act.mesh.count = 0;
+  if (K >= CORE_COURSES) return;
+  const y0 = K * CH, a = halfW(y0 + CH);
+  const n = Math.max(1, Math.round(2 * a / BL)), s = 2 * a / n;
+  const e = entryPoint(y0, a), ea = Math.atan2(e.z, e.x);
+  const chamber = y0 >= 42.5 && y0 < 51;
+  const items = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const x = -a + (i + 0.5) * s, z = -a + (j + 0.5) * s;
+    const ring = i === 0 || j === 0 || i === n - 1 || j === n - 1;
+    let type = ring ? 0 : 1;
+    if (chamber && Math.abs(x) < 7.6 && Math.abs(z) < 4.9) {
+      if (y0 < 49 && Math.abs(x) < 5.3 && Math.abs(z) < 2.7) continue; // chamber void
+      type = 2;
+    }
+    let key;
+    if (ring) { let d = Math.abs(Math.atan2(z, x) - ea); if (d > Math.PI) d = 2 * Math.PI - d; key = d; }
+    else key = 1000 - Math.hypot(x - e.x, z - e.z);
+    items.push({ x, z, type, key });
+  }
+  items.sort((p, q) => p.key - q.key);
+  const c = new THREE.Color();
+  items.forEach((it, idx) => {
+    _m.makeScale(s - 0.06, CH - 0.03, s - 0.06).setPosition(it.x, y0 + CH / 2, it.z);
+    act.mesh.setMatrixAt(idx, _m);
+    c.copy(it.type === 0 ? COL.casing : it.type === 1 ? COL.core : COL.granite).offsetHSL(0, 0, (rand() - 0.5) * 0.07);
+    act.mesh.setColorAt(idx, c);
+  });
+  act.mesh.instanceMatrix.needsUpdate = true; act.mesh.instanceColor.needsUpdate = true;
+  act.items = items; act.total = items.length;
+}
+
+// ============================================================
+// Ambient crews (quarry, survey, levelling, setters, finishing)
+// ============================================================
+const quarryCrew = [];
+for (let i = 0; i < 90; i++) {
+  let x, z; do { x = 82 + rand() * 120; z = 676 + rand() * 88; } while (Math.abs(x - 140) < 9);
+  const a = rand() * Math.PI * 2; quarryCrew.push({ x, z, fx: Math.cos(a), fz: Math.sin(a), ph: rand() * 6 });
+}
+const setterSeeds = Array.from({ length: 36 }, () => ({ a: rand() * Math.PI * 2, ph: rand() * 6, k: Math.floor(rand() * 4) }));
+
+function drawAmbient(st, time) {
+  // Quarry is worked from levelling onwards
+  if (st.T >= T_LEVEL[0] && st.T < T_CAP[1]) for (const q of quarryCrew) figs.add(q.x, -QD, q.z, q.fx, q.fz, 'hammer', time * 5 + q.ph, 0.45);
+  // Survey
+  if (st.T < T_SURVEY[1] + 0.004) {
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; figs.add(Math.cos(a) * 4.5, 0, Math.sin(a) * 4.5, -Math.cos(a), -Math.sin(a), i % 2 ? 'stand' : 'oversee', time + i, 0.05); }
+    corners.forEach(([x, z], i) => { for (let k = 0; k < 3; k++) figs.add(x + (k - 1) * 1.5, 0, z + 2, 0, -1, 'stand', time + i + k, 0.05); });
+    // cord walkers at the growing end of the perimeter
+    const p = clamp01(st.surveyP / 0.6) * 4, side = Math.min(3, Math.floor(p)), f = p - side;
+    const [ax, az] = corners[side], [bx, bz] = corners[(side + 1) % 4];
+    const dx = (bx - ax) / BASE, dz = (bz - az) / BASE;
+    for (let k = 0; k < 4; k++) figs.add(ax + (bx - ax) * f - dx * k * 1.6, 0, az + (bz - az) * f - dz * k * 1.6, dx, dz, 'walk', time * 6 + k, 0.05);
+  }
+  // Levelling diggers along the trenches
+  if (st.T >= T_LEVEL[0] && st.T < T_LEVEL[1]) {
+    const grow = clamp01(st.levelP / 0.5);
+    trenches.forEach((t, i) => {
+      if (i % 2) return;
+      for (let k = 0; k < 4; k++) {
+        const u = -HB + BASE * grow * (k + 0.5) / 4;
+        const x = t.axis === 'x' ? u : t.c + 1.4, z = t.axis === 'x' ? t.c + 1.4 : u;
+        figs.add(x, 0, z, t.axis === 'x' ? 0 : -1, t.axis === 'x' ? -1 : 0, 'hammer', time * 5 + i + k, 0.5);
+      }
+    });
+  }
+  // Setting crews with levers on the working course
+  if (st.building && act.total && act.placed > 0) {
+    setterSeeds.forEach((sd, j) => {
+      const idx = act.placed - 1 - j * 4; if (idx < 0) return;
+      const it = act.items[idx];
+      figs.add(it.x + Math.cos(sd.a) * 0.4, st.yW + CH, it.z + Math.sin(sd.a) * 0.4, Math.cos(sd.a), Math.sin(sd.a), sd.k === 0 ? 'stand' : 'lever', time * 2.4 + sd.ph, 0.45);
+    });
+  }
+  // Top lever crews (above the spiral) and the pyramidion
+  if ((st.building && st.yW > SPIRAL_END) || (st.T >= T_CAP[0] && st.T < T_CAP[1])) {
+    const c = st.T >= T_CAP[0] ? pyramidionPos(st.capP, _P) : _P.copy(spiralAt(SPIRAL_END));
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2, x = c.x + Math.cos(a) * 2.6, z = c.z + Math.sin(a) * 2.6;
+      figs.add(x, c.y, z, -Math.cos(a), -Math.sin(a), i % 4 === 0 ? 'call' : 'lever', time * 2.4 + i, 0.45);
+    }
+  }
+  // Finishing: masons dress the casing just below the finished line
+  if (st.finishing && st.finP < 1) {
+    const k = Math.max(0, Math.min(CORE_COURSES - 2, Math.floor(st.casing / CH) - 2));
+    const y = (k + 1) * CH, r = (halfW((k + 1) * CH) + halfW((k + 2) * CH)) / 2;
+    const n = Math.max(1, Math.min(34, Math.floor(2 * r / 6)));
+    for (let face = 0; face < 4; face++) for (let i = 0; i < n; i++) {
+      const u = -r + (i + 0.5) * 2 * r / n;
+      const [x, z, fx, fz] = face === 0 ? [u, r, 0, -1] : face === 1 ? [r, -u, -1, 0] : face === 2 ? [-u, -r, 0, 1] : [-r, u, 1, 0];
+      figs.add(x, y, z, fx, fz, 'hammer', time * 5 + i + face, 0.25);
+    }
+  }
+}
+
+// ============================================================
+// Apply state
+// ============================================================
+let curK = -1, clock = 0;
+function applyState(st, tdt) {
+  clock += tdt;
+  // Survey
+  const sv = st.T < T_LEVEL[1];
+  const pp = clamp01(st.surveyP / 0.6) * 4;
+  cords.forEach((c, i) => {
+    if (!sv) { c.mesh.visible = false; return; }
+    setCord(c, c.diag ? clamp01((st.surveyP - 0.6) / 0.4) : clamp01(pp - i), 0.12);
+  });
+  horizonWall.visible = st.T < T_SURVEY[1];
+  stakes.visible = sv;
+  // Levelling
+  const lp = st.levelP, showTr = st.T >= T_LEVEL[0] && lp < 0.93;
+  trenches.forEach(t => {
+    t.mesh.visible = showTr; if (!showTr) return;
+    const len = BASE * clamp01(lp / 0.5);
+    t.mesh.scale.set(1, 1, Math.max(0.01, len));
+    if (t.axis === 'x') { t.mesh.rotation.y = Math.PI / 2; t.mesh.position.set(-HB + len / 2, 0.05, t.c); }
+    else { t.mesh.rotation.y = 0; t.mesh.position.set(t.c, 0.05, -HB + len / 2); }
+  });
+  platform.visible = lp > 0.72;
+  platform.scale.y = Math.max(0.01, clamp01((lp - 0.72) / 0.2));
+  // Courses
+  if (st.K !== curK) {
+    curK = st.K;
+    slabs.forEach((m, k) => { m.visible = k < st.K; });
+    buildActive(st.K);
+  }
+  act.placed = st.building ? Math.floor(st.frac * act.total) : 0;
+  act.mesh.count = act.placed;
+  // Ramps
+  setRamp(st.rampH);
+  setSpiral(st.spiralLim);
+  // Casing & pyramidion
+  casing.visible = st.finishing; casingPlane.constant = -st.casing;
+  pyramidion.visible = st.T >= T_CAP[0];
+  if (pyramidion.visible) { pyramidionPos(st.capP, _P); pyramidion.position.set(_P.x, _P.y + PYR_H / 2, _P.z); }
+
+  // People
+  figs.begin(); ropes.begin(); nSledge = 0; nCargo = 0;
+  drawAmbient(st, clock);
+  const convoyOn = st.building && st.h >= 41 && st.h < 58;
+  if (st.building) {
+    if (routeYW !== st.yW) {
+      routeYW = st.yW; route = routePoints(st.yW).map(p => ({ sp: 0, ...p }));
+      teams.forEach(t => { t.path = teamPath(t); });
+    }
+    for (const t of teams) {
+      t.visible = !(t.ret && convoyOn);
+      const v = t.ret ? 1.8 : 1.3;
+      t.u += v * tdt / t.path.L; t.walked += v * tdt;
+      if (t.u >= 1) { t.u -= 1; t.path = teamPath(t); }
+      if (!t.visible) continue;
+      const s = t.ret ? (1 - t.u) * t.path.L : t.u * t.path.L;
+      drawTeam(t.ret
+        ? { path: t.path, s, dir: -1, lane: t.lane, walked: t.walked, ropes: [-0.75, 0.75], perRope: 6, firstD: 2.6, gap: 1.4, kind: 'drag', lean: 0.12, cargo: null, overseer: true, out: t }
+        : { path: t.path, s, dir: 1, lane: t.lane, walked: t.walked, ropes: [-0.75, 0.75], perRope: 12, firstD: 3.2, gap: 1.4, kind: 'haul', lean: 0.38, cargo: 'block', pourers: [0], overseer: true, out: t });
+    }
+    if (convoyOn) {
+      const hr = Math.min(st.yW, STRAIGHT_TOP), a = halfW(hr);
+      const p = new Path(route.concat([{ x: 0, y: hr, z: 4, sp: 2 }]));
+      const sTop = p.L - (a - 4);
+      const dTop = -60 + 130 * (st.h - 41) / 17;
+      convoy.path = p;
+      drawTeam({ path: p, s: sTop + dTop, dir: 1, lane: 2, walked: dTop, ropes: [-4, -2.4, -0.8, 0.8, 2.4, 4], perRope: 32, firstD: 6.4, gap: 1.25, kind: 'haul', lean: 0.42, cargo: 'beam', pourers: [-1.2, 0, 1.2], rider: true, out: convoy });
+    }
+  } else teams.forEach(t => { t.visible = false; });
+  convoy.visible = convoyOn;
+  figs.end(); ropes.end();
+  sledgeMesh.count = nSledge; cargoMesh.count = nCargo;
+  sledgeMesh.instanceMatrix.needsUpdate = true; cargoMesh.instanceMatrix.needsUpdate = true;
+  if (cargoMesh.instanceColor) cargoMesh.instanceColor.needsUpdate = true;
+}
+const convoy = { pos: new THREE.Vector3(), fwd: new THREE.Vector3(), visible: false };
+
+// ============================================================
+// UI
+// ============================================================
+const $ = id => document.getElementById(id);
+let simT = 0, playing = true, speed = 1, scrubbing = false;
+const segEls = STEPS.map((s, i) => {
+  const b = document.createElement('button'); b.className = 'seg'; b.textContent = s.label; b.title = s.title;
+  b.style.flex = `${Math.max(0.012, s.t1 - s.t0)} 1 0`;
+  b.onclick = () => { simT = s.t0 + 0.0005; };
+  $('segments').appendChild(b); return b;
+});
+const SPEEDS = [0.5, 1, 2, 4, 8];
+SPEEDS.forEach(v => {
+  const b = document.createElement('button'); b.className = 'chip' + (v === 1 ? ' on' : ''); b.textContent = v + '×';
+  b.onclick = () => { speed = v; [...$('speeds').querySelectorAll('.chip')].forEach(c => c.classList.toggle('on', c === b)); };
+  $('speeds').appendChild(b);
+});
+function setPlaying(p) { playing = p; $('play').textContent = p ? '❚❚ Pause' : '▶ Play'; $('play').classList.toggle('on', p); }
+$('play').onclick = () => { if (!playing && simT >= 1) simT = 0; setPlaying(!playing); };
+const tl = $('timeline');
+tl.addEventListener('input', () => { simT = tl.value / 1000; });
+tl.addEventListener('pointerdown', () => { scrubbing = true; });
+addEventListener('pointerup', () => { scrubbing = false; });
+$('openPlan').onclick = () => { $('plan').classList.add('open'); };
+$('closePlan').onclick = () => { $('plan').classList.remove('open'); };
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' && e.code !== 'Space') return;
+  if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+  if (e.code === 'ArrowRight') simT = Math.min(1, simT + 0.01);
+  if (e.code === 'ArrowLeft') simT = Math.max(0, simT - 0.01);
+  if (e.code === 'Escape') $('plan').classList.remove('open');
+});
+
+// Cameras
+let camMode = 'free', camAnim = null, followIdx = 3, lastState = stateAt(0);
+const CAMS = {
+  overview: () => ({ pos: [760, 360, 1160], tgt: [70, 10, 360] }),
+  ramp: () => ({ pos: [95, 40, 520], tgt: [0, Math.min(lastState.yW, 60) * 0.5, 260] }),
+  quarry: () => ({ pos: [290, 60, 880], tgt: [140, -8, 700] }),
+  top: () => { const y = workY(); return { pos: [55, y + 38, 150], tgt: [0, y, 0] }; },
+};
+function workY() { const st = lastState; return st.T >= T_CAP[0] && !st.finishing ? HTOP : st.finishing ? Math.max(2, st.casing) : st.yW; }
+function flyTo(pos, tgt, dur = 1.6) { camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: new THREE.Vector3(...pos), t1: new THREE.Vector3(...tgt), k: 0, dur }; }
+const camButtons = {};
+[['overview', 'Overview'], ['ramp', 'Ramp'], ['quarry', 'Quarry'], ['top', 'Working level'], ['follow', 'Follow team'], ['cinema', 'Cinematic']].forEach(([key, label]) => {
+  const b = document.createElement('button'); b.className = 'chip' + (key === 'overview' ? ' on' : ''); b.textContent = label;
+  b.onclick = () => selectCam(key); $('cams').appendChild(b); camButtons[key] = b;
+});
+function selectCam(key) {
+  if (key === 'cinema') {
+    camMode = 'cinema'; camAnim = null; director.reset();
+  } else if (key === 'follow') {
+    const subj = followSubject(true);
+    if (!subj) return;
+    camMode = 'follow';
+    const p = subj.pos, f = subj.fwd;
+    flyTo([p.x - f.x * 16 + f.z * 9, p.y + 7, p.z - f.z * 16 - f.x * 9], [p.x, p.y + 1, p.z], 1.4);
+  } else {
+    camMode = key === 'top' ? 'top' : 'free';
+    const c = CAMS[key](); flyTo(c.pos, c.tgt);
+  }
+  Object.entries(camButtons).forEach(([k, b]) => b.classList.toggle('on', k === key));
+}
+function followSubject(advance) {
+  if (convoy.visible && (advance ? followIdx !== -1 : followIdx === -1)) { followIdx = -1; return convoy; }
+  if (!lastState.building) return null;
+  const ups = teams.map((t, i) => i).filter(i => !teams[i].ret);
+  if (advance || followIdx < 0 || !teams[followIdx]) {
+    // prefer a loaded team that is on (or about to reach) the ramp
+    const cands = ups.filter(i => teams[i].u > 0.35 && teams[i].u < 0.8);
+    const pool = cands.length ? cands : ups;
+    const cur = pool.indexOf(followIdx);
+    followIdx = pool[(cur + 1) % pool.length];
+  }
+  return teams[followIdx];
+}
+controls.addEventListener('start', () => {
+  camAnim = null;
+  if (camMode === 'cinema') { camMode = 'free'; Object.values(camButtons).forEach(b => b.classList.remove('on')); }
+});
+const _delta = new THREE.Vector3();
+function updateCamera(dt) {
+  if (camAnim) {
+    camAnim.k = Math.min(1, camAnim.k + dt / camAnim.dur);
+    const e = camAnim.k < 0.5 ? 4 * camAnim.k ** 3 : 1 - Math.pow(-2 * camAnim.k + 2, 3) / 2;
+    if (camMode === 'follow') { const s = followSubject(false); if (s) { camAnim.t1.set(s.pos.x, s.pos.y + 1, s.pos.z); } }
+    camera.position.lerpVectors(camAnim.p0, camAnim.p1, e);
+    controls.target.lerpVectors(camAnim.t0, camAnim.t1, e);
+    if (camAnim.k >= 1) camAnim = null;
+    return;
+  }
+  if (camMode === 'follow') {
+    const s = followSubject(false);
+    if (!s || (s !== convoy && !s.visible)) { camMode = 'free'; Object.entries(camButtons).forEach(([k, b]) => b.classList.toggle('on', false)); return; }
+    _delta.set(s.pos.x, s.pos.y + 1, s.pos.z).sub(controls.target);
+    if (_delta.length() > 60) _delta.multiplyScalar(1); else _delta.multiplyScalar(Math.min(1, dt * 6));
+    camera.position.add(_delta); controls.target.add(_delta);
+  } else if (camMode === 'top') {
+    const dy = (workY() - controls.target.y) * Math.min(1, dt * 2);
+    camera.position.y += dy; controls.target.y += dy;
+  }
+}
+
+// HUD
+const fmt = n => n.toLocaleString('en-US');
+let hudTimer = 0, lastStep = -1;
+function updateHUD(st) {
+  if (st.step !== lastStep) {
+    lastStep = st.step; const s = STEPS[st.step];
+    $('phaseEyebrow').textContent = st.step < STEPS.length - 1 ? `Step ${st.step + 1} of ${STEPS.length - 1}` : 'Complete';
+    $('phaseTitle').textContent = s.title; $('phaseText').textContent = s.text;
+  }
+  segEls.forEach((el, i) => { el.classList.toggle('active', i === st.step); el.classList.toggle('past', i < st.step); });
+  const built = st.T >= T_BUILD[1] ? (st.T >= T_CAP[1] ? H : HTOP) : st.h;
+  const vf = st.T >= T_CAP[1] ? 1 : volFrac(built);
+  $('sYear').textContent = `${st.year.toFixed(1)} / ≈20`;
+  $('sHeight').textContent = `${built.toFixed(1)} m`;
+  $('sVol').textContent = `${(vf * 100).toFixed(vf > 0.995 && vf < 1 ? 2 : 1)} %`;
+  $('sVolBar').style.width = `${vf * 100}%`;
+  $('sBlocks').textContent = fmt(Math.round(BLOCKS_TOTAL * Math.min(1, volFrac(built) / volFrac(HTOP)) / 1000) * 1000);
+  $('sCourse').textContent = `${st.T >= T_BUILD[1] ? CORE_COURSES : st.K} / ${CORE_COURSES}`;
+  const key = STEPS[st.step].key;
+  $('sRate').textContent = key === 'lower' || key === 'granite' ? '≈ 60 blocks/h' : key === 'spiral' ? '≈ 25 blocks/h' : key === 'top' || key === 'cap' ? 'by lever' : '–';
+  $('sWork').textContent = { survey: '≈ 300', level: '≈ 6,000', lower: '≈ 18,000', granite: '≈ 18,000', spiral: '≈ 13,000', top: '≈ 7,000', cap: '≈ 5,000', finish: '≈ 8,000', done: '–' }[key];
+  camButtons.follow.disabled = !(st.building);
+  $('note').textContent = convoyOn(st) ? 'A granite beam is on the ramp. “Follow team” cycles to it.' : 'People are drawn to scale (1.7 m). Choose “Follow team” to see them up close.';
+}
+const convoyOn = st => st.building && st.h >= 41 && st.h < 58;
+
+// ============================================================
+// Cinematic director: a shot list keyed to animation time (seconds at 1x)
+// ============================================================
+const ease = p => p * p * (3 - 2 * p);
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+const SITE = V3(60, 0, 330);
+function orbitPos(c, r, h, deg, out) { const a = deg * Math.PI / 180; return out.set(c.x + Math.sin(a) * r, c.y + h, c.z + Math.cos(a) * r); }
+const upTeams = () => teams.filter(t => !t.ret && t.path);
+function pickBy(score) {
+  let best = null, bs = -Infinity;
+  for (const t of upTeams()) { if (t.u > 0.88) continue; const s = score(t); if (s > bs) { bs = s; best = t; } }
+  if (bs > -1e8) return best;
+  return upTeams().filter(t => t.u < 0.88).sort((a, b) => b.pos.y - a.pos.y)[0] || null;
+}
+const rampFoot = st => { const hr = Math.min(st.yW, STRAIGHT_TOP); return halfW(hr) + STRAIGHT_RUN * hr; };
+const PICK = {
+  ground: st => { const f = rampFoot(st); return pickBy(t => t.pos.y < 0.5 && t.pos.z > f && Math.abs(t.pos.x) < 25 ? -Math.abs(t.pos.z - (f + 14)) : -1e9); },
+  ramp: st => { const hr = Math.min(st.yW, STRAIGHT_TOP); return pickBy(t => t.pos.y > 0.5 && t.pos.y < hr - 3 ? -Math.abs(t.pos.y - hr * 0.4) : -1e9); },
+  spiral: st => pickBy(t => t.pos.y > 61 && t.pos.y < st.yW - 4 ? -Math.abs(t.pos.y - (STRAIGHT_TOP + (st.yW - STRAIGHT_TOP) * 0.45)) : -1e9),
+  convoy: () => convoy,
+};
+const SHOT = {
+  orbit: o => ({ ...o, update(p, st, P, T) {
+    const c = typeof o.c === 'function' ? o.c(st) : o.c;
+    orbitPos(c, o.r, o.h, o.a0 + (o.a1 - o.a0) * p, P); T.copy(c); if (o.ty) T.y += o.ty;
+  } }),
+  crane: o => ({ ...o, init(st) { this.k = o.make(st); }, update(p, st, P, T) {
+    const e = ease(p); P.lerpVectors(this.k.p0, this.k.p1, e); T.lerpVectors(this.k.t0, this.k.t1, e);
+  } }),
+  follow: o => ({ ...o,
+    init(st) { this.subj = PICK[o.pick](st); this.F = this.subj ? this.subj.fwd.clone() : V3(0, 0, -1); this.last = this.subj ? this.subj.pos.clone() : V3(); },
+    update(p, st, P, T, dt) {
+      let s = this.subj;
+      if (s && s.pos.distanceTo(this.last) > 25) { s = this.subj = PICK[o.pick](st); if (s) this.F.copy(s.fwd); }
+      if (!s) { orbitPos(SITE, 1060, 360, 40, P); T.copy(SITE); return; }
+      this.last.copy(s.pos);
+      this.F.lerp(s.fwd, Math.min(1, dt * 1.2)); this.F.y = 0; this.F.normalize();
+      const th = (o.th0 + (o.th1 - o.th0) * p) * Math.PI / 180, F = this.F, Rx = -F.z, Rz = F.x;
+      P.set(s.pos.x + (-F.x * Math.cos(th) + Rx * Math.sin(th)) * o.d, s.pos.y + o.h, s.pos.z + (-F.z * Math.cos(th) + Rz * Math.sin(th)) * o.d);
+      T.set(s.pos.x + F.x * o.ahead, s.pos.y + 1.2, s.pos.z + F.z * o.ahead);
+    } }),
+  work: o => ({ ...o,
+    init(st) { const it = act.total ? act.items[Math.min(act.total - 1, act.placed + 20)] : { x: 0, z: 0 }; this.ax = it.x; this.az = it.z; },
+    update(p, st, P, T) { T.set(this.ax, st.yW + 0.5, this.az); orbitPos(T, o.r, o.h, o.a0 + (o.a1 - o.a0) * p, P); } }),
+};
+function buildShots() {
+  const D = DURATION, shots = [];
+  const seg = (a, b, list) => {
+    const tot = list.reduce((x, l) => x + l[0], 0); let t = a;
+    for (const [w, sh] of list) { const t1 = t + (b - a) * w / tot; shots.push({ ...sh, t0: t, t1 }); t = t1; }
+  };
+  const sv1 = T_SURVEY[1] * D, lv1 = T_LEVEL[1] * D, b0 = T_BUILD[0] * D, g41 = tOfH(41) * D, g58 = tOfH(58) * D,
+    g60 = tOfH(STRAIGHT_TOP) * D, g132 = tOfH(SPIRAL_END) * D, b1 = T_BUILD[1] * D, c1 = T_CAP[1] * D, f1 = T_FINISH[1] * D;
+  const spiralSplit = g60 + (g132 - g60) * 0.22;
+  seg(0, sv1, [
+    [1, SHOT.crane({ view: 'detail', label: 'Surveyors at the artificial horizon',
+      camera: 'Low crane shot from the south-east, rising and pulling back from the centre of the site.',
+      action: 'Surveyors stand inside a small circular mudbrick wall (the artificial horizon) at the centre of the future pyramid. A team walks the first cord along the south side of the square.',
+      make: () => ({ p0: V3(14, 5, 20), t0: V3(0, 1, 0), p1: V3(45, 24, 66), t1: V3(0, 0, 0) }) })],
+    [1, SHOT.crane({ view: 'overview', label: 'The square is pegged out',
+      camera: 'High crane shot rising over the site.',
+      action: 'Red cords are stretched around all four sides of the 230 m square, then along both diagonals to check that the corners are square. Wooden stakes mark the corners.',
+      make: () => ({ p0: V3(150, 160, 330), t0: V3(0, 0, 0), p1: V3(240, 330, 420), t1: V3(0, 0, 40) }) })],
+  ]);
+  seg(sv1, lv1, [
+    [1, SHOT.crane({ view: 'detail', label: 'Cutting the levelling trenches',
+      camera: 'Low tracking shot moving east, just above the trenches.',
+      action: 'Workers with pounders and chisels cut a grid of shallow trenches across the base. The trenches fill with water and give a common level everywhere.',
+      make: () => ({ p0: V3(-70, 11, 150), t0: V3(-60, 0, 95), p1: V3(25, 13, 150), t1: V3(25, 0, 95) }) })],
+    [1, SHOT.orbit({ view: 'overview', label: 'Water grid, then a level platform',
+      camera: 'Slow orbit high above the base.',
+      action: 'The full water grid is visible. The rock is then cut down to the waterline mark, the trenches are filled, and a pale, level platform appears where the pyramid will stand. Quarrying has begun in the pit to the south-east.',
+      c: V3(0, 0, 0), r: 330, h: 210, a0: 20, a1: 50 })],
+  ]);
+  seg(b0, g41, [
+    [10, SHOT.orbit({ view: 'overview', label: 'Establishing shot: quarry, road, ramp, pyramid',
+      camera: 'Wide aerial orbit from the south-east, showing the whole works.',
+      action: 'The first courses spread across the platform. A straight ramp starts from the middle of the south face and grows with every course. Lines of sledge teams run from the quarry pit, across the plain and up the ramp.',
+      c: SITE, r: 1060, h: 360, a0: 32, a1: 42 })],
+    [9, SHOT.crane({ view: 'detail', label: 'The quarry',
+      camera: 'Descending crane shot into the quarry pit.',
+      action: 'Quarrymen pound and cut blocks out of the bedrock while finished blocks wait in rows. Loaded sledges climb out of the pit up the graded north slope.',
+      make: () => ({ p0: V3(300, 55, 880), t0: V3(140, -8, 705), p1: V3(225, 28, 795), t1: V3(140, -9, 700) }) })],
+    [12, SHOT.follow({ view: 'detail', label: 'Following one hauling team',
+      camera: 'Close tracking shot alongside and behind one sledge team.',
+      action: 'One team: 24 haulers in pairs on two ropes. A water pourer walks in front of the sledge wetting the track, and a foreman in an ochre kilt walks alongside. The team approaches the foot of the straight ramp.',
+      pick: 'ground', d: 20, h: 6, th0: 50, th1: 25, ahead: 6 })],
+    [9, SHOT.crane({ view: 'detail', label: 'Along the straight ramp',
+      camera: 'Side tracking shot moving along the ramp towards the pyramid.',
+      action: 'The ramp is 20 m wide with three lanes: loaded sledges go up the two outer lanes and empty sledges come down the middle lane.',
+      make: st => { const hr = Math.max(4, Math.min(st.yW, STRAIGHT_TOP)), a = halfW(hr), f = a + STRAIGHT_RUN * hr, m = (a + f) / 2;
+        return { p0: V3(70, hr * 0.5 + 18, m + 100), t0: V3(0, hr * 0.5, m + 40), p1: V3(60, hr * 0.6 + 18, m - 20), t1: V3(0, hr * 0.7, m - 70) }; } })],
+    [9, SHOT.orbit({ view: 'overview', label: 'Courses rising',
+      camera: 'Medium aerial orbit from the east.',
+      action: 'The stepped core rises course by course. Each course is laid outer casing ring first, then filled from the far side back towards the ramp.',
+      c: V3(0, 15, 120), r: 520, h: 200, a0: 60, a1: 76 })],
+    [12, SHOT.work({ view: 'detail', label: 'Setting crews on the working course',
+      camera: 'Close orbit over the top of the pyramid where blocks are being set.',
+      action: 'Setting crews use wooden levers to ease each delivered block into place on the working course. Light casing blocks run along the outer edge and darker core blocks fill the inside.',
+      r: 38, h: 16, a0: 30, a1: 75 })],
+    [10, SHOT.follow({ view: 'detail', label: 'A sledge climbing the ramp',
+      camera: 'Tracking shot swinging round to the side of a team on the ramp.',
+      action: 'A loaded sledge climbs the 1 : 10 slope. About 26 people hold a 2.8 t load on a wetted sleeper track. The pyramid face rises beside the ramp.',
+      pick: 'ramp', d: 22, h: 8, th0: 60, th1: 100, ahead: 6 })],
+    [7, SHOT.orbit({ view: 'overview', label: 'Most of the stone already in place',
+      camera: 'Wide aerial orbit from the south-east.',
+      action: 'The pyramid is already about 40 m high and holds well over half of all its stone. The ramp is now several hundred metres long.',
+      c: SITE, r: 1060, h: 360, a0: 42, a1: 50 })],
+  ]);
+  seg(g41, g58, [
+    [6, SHOT.follow({ view: 'detail', label: 'Granite beam convoy',
+      camera: 'Tracking shot behind and beside the granite convoy, swinging round to the side.',
+      action: 'A red granite beam for the King\'s Chamber rides on a large sledge. Six parallel ropes of haulers pull it, with water pourers in front and a caller standing on the beam keeping the rhythm. Only part of the roughly 400 people needed is drawn.',
+      pick: 'convoy', d: 34, h: 13, th0: 35, th1: 80, ahead: 15 })],
+    [4, SHOT.follow({ view: 'detail', label: 'Convoy reaches the working level',
+      camera: 'Reverse shot from in front of the convoy, looking back down the ramp.',
+      action: 'The haulers come over the top of the ramp onto the working level and head for the chamber, an open space left in the courses and lined with pink granite.',
+      pick: 'convoy', d: 40, h: 18, th0: 150, th1: 170, ahead: 0 })],
+  ]);
+  seg(g58, spiralSplit, [
+    [1, SHOT.orbit({ view: 'overview', label: 'Straight ramp tops out; spiral ramp begins',
+      camera: 'Wide aerial orbit from the south-east.',
+      action: 'The straight ramp stops at 60 m, about 600 m long. From its top, a narrow ramp starts along the stepped south face and turns the first corner.',
+      c: V3(0, 40, 60), r: 600, h: 240, a0: 35, a1: 60 })],
+  ]);
+  seg(spiralSplit, g132, [
+    [10, SHOT.orbit({ view: 'overview', label: 'The ramp around the steps',
+      camera: 'Orbit around the pyramid, moving from the east face to the north face.',
+      action: 'The 6 m wide ramp climbs around the faces at 1 : 8, resting on the stepped core. Square landings at the corners let sledges be levered round.',
+      c: st => V3(0, st.yW * 0.6, 0), r: 330, h: 110, a0: 70, a1: 150 })],
+    [11, SHOT.follow({ view: 'detail', label: 'A team on the spiral ramp',
+      camera: 'Close tracking shot from outside the ramp, looking along it.',
+      action: 'A loaded team takes the inner lane of the spiral ramp, while empty sledges come down the outer lane. The drop beside the ramp shows how high the work now is.',
+      pick: 'spiral', d: 18, h: 7, th0: 55, th1: 35, ahead: 6 })],
+    [9, SHOT.work({ view: 'detail', label: 'Small upper courses',
+      camera: 'Close orbit over the working course.',
+      action: 'The courses are much smaller now, so fewer crews fit on top. The one-lane spiral ramp sets the pace.',
+      r: 38, h: 16, a0: 200, a1: 250 })],
+    [9, SHOT.orbit({ view: 'overview', label: 'Upper courses from afar',
+      camera: 'Wide aerial orbit from the south-east.',
+      action: 'The whole site from afar: the long straight ramp, the spiral wrapping the upper pyramid, and the quarry pit.',
+      c: SITE, r: 1060, h: 380, a0: 50, a1: 60 })],
+  ]);
+  seg(g132, b1, [
+    [1, SHOT.orbit({ view: 'detail', label: 'Lever crews at the top',
+      camera: 'Close orbit at the end of the spiral ramp near the summit.',
+      action: 'The spiral ramp ends at 132 m. Lever crews raise the last blocks step by step, lifting one end, packing a timber shim under it, then lifting the other end.',
+      c: st => spiralAt(SPIRAL_END), r: 28, h: 10, a0: Math.atan2(SP[SP.length - 1].x, SP[SP.length - 1].z) * 180 / Math.PI - 25, a1: Math.atan2(SP[SP.length - 1].x, SP[SP.length - 1].z) * 180 / Math.PI + 25 })],
+  ]);
+  seg(b1, c1, [
+    [1, SHOT.orbit({ view: 'detail', label: 'The pyramidion climbs to the apex',
+      camera: 'Close orbit following the capstone.',
+      action: 'The white capstone is levered up the last steps of the core by a small crew and set on the summit.',
+      c: st => { pyramidionPos(st.capP, _P); return V3(_P.x, _P.y + 1, _P.z); }, r: 26, h: 8, a0: 20, a1: 70 })],
+  ]);
+  seg(c1, f1, [
+    [35, SHOT.orbit({ view: 'detail', label: 'Masons dressing the casing',
+      camera: 'Close tracking shot that follows the finished line down the south face.',
+      action: 'Standing on the steps just below the finished line, masons cut the rough casing back to one smooth white plane. The finished line moves down the faces and the spiral ramp is dismantled as it passes.',
+      c: st => { const y = Math.max(0, st.casing - 2); return V3(8, y, halfW(y) + 2); }, r: 48, h: 12, a0: 22, a1: 40 })],
+    [65, SHOT.orbit({ view: 'overview', label: 'Casing goes on, ramps come off',
+      camera: 'Wide aerial orbit from the south-east.',
+      action: 'The smooth white casing spreads downwards. The straight ramp is lowered and shortened as the finishing passes 60 m, until only the finished pyramid stands on its platform.',
+      c: SITE, r: 1000, h: 340, a0: 30, a1: 45 })],
+  ]);
+  seg(f1, D, [
+    [1, SHOT.orbit({ view: 'overview', label: 'The finished Great Pyramid',
+      camera: 'Slow, low orbit around the finished pyramid.',
+      action: 'The completed pyramid: 146.6 m high and 230 m along each side, with smooth casing and the capstone at the apex.',
+      c: V3(0, 55, 0), r: 520, h: 90, a0: 40, a1: 75 })],
+  ]);
+  return shots;
+}
+const SHOTS = buildShots();
+const director = {
+  idx: -1, P: V3(), T: V3(),
+  reset() { this.idx = -1; },
+  apply(t, st, dt) {
+    let i = SHOTS.findIndex(s => t >= s.t0 && t < s.t1); if (i < 0) i = SHOTS.length - 1;
+    const sh = SHOTS[i];
+    if (i !== this.idx) { this.idx = i; if (sh.init) sh.init(st); }
+    sh.update(clamp01((t - sh.t0) / (sh.t1 - sh.t0)), st, this.P, this.T, dt);
+    camera.position.copy(this.P); controls.target.copy(this.T); camera.lookAt(this.T);
+  },
+};
+
+// ============================================================
+// Timeline document (for narration) built from the same shot list
+// ============================================================
+function tc(t) { const m = Math.floor(t / 60), s = t - m * 60; return `${String(m).padStart(2, '0')}:${s.toFixed(1).padStart(4, '0')}`; }
+function facts(t) {
+  const st = stateAt(t / DURATION), built = st.T >= T_BUILD[1] ? (st.T >= T_CAP[1] ? H : HTOP) : st.h;
+  return { year: +st.year.toFixed(1), height_m: +built.toFixed(1), stone_laid_pct: +((st.T >= T_CAP[1] ? 1 : volFrac(built)) * 100).toFixed(1),
+    blocks_placed_est: Math.round(BLOCKS_TOTAL * Math.min(1, volFrac(built) / volFrac(HTOP)) / 1000) * 1000, step: STEPS[st.step].title };
+}
+function buildEvents() {
+  const ev = [], add = (t, text) => ev.push({ t: +t.toFixed(1), text });
+  let prev = stateAt(0), milestones = [25, 50, 75, 90, 99], mi = 0;
+  add(0, `Step 1 begins: ${STEPS[0].title}.`);
+  for (let t = 0.05; t <= DURATION; t += 0.05) {
+    const st = stateAt(t / DURATION);
+    if (st.step !== prev.step) add(t, STEPS[st.step].key === 'done' ? `Final view: ${STEPS[st.step].title}.` : `Step ${st.step + 1} begins: ${STEPS[st.step].title}.`);
+    if (prev.T < T_BUILD[0] && st.T >= T_BUILD[0]) add(t, 'First course begins on the levelled platform; hauling teams appear.');
+    if (!convoyOn(prev) && convoyOn(st)) add(t, 'Granite beam convoy appears on the straight ramp.');
+    if (convoyOn(prev) && !convoyOn(st)) add(t, 'Granite convoy has delivered its beam; King\'s Chamber level complete.');
+    if (prev.yW < 42.5 && st.yW >= 42.5) add(t, 'Courses reach the King\'s Chamber floor (~43 m); the chamber is left open and lined with granite.');
+    if (prev.rampH < STRAIGHT_TOP && st.rampH >= STRAIGHT_TOP && !st.finishing) add(t, 'Straight ramp reaches its full height of 60 m (~600 m long).');
+    if (prev.yW <= STRAIGHT_TOP && st.yW > STRAIGHT_TOP && !st.finishing) add(t, 'First course served by the spiral ramp.');
+    if (prev.yW <= SPIRAL_END && st.yW > SPIRAL_END && !st.finishing) add(t, 'Spiral ramp ends at 132 m; the rest is raised by lever.');
+    if (prev.T < T_CAP[1] && st.T >= T_CAP[1]) add(t, 'Pyramidion set on the summit: the pyramid reaches 146.6 m.');
+    if (prev.casing > SPIRAL_END && st.casing <= SPIRAL_END) add(t, 'Finished casing line passes 132 m; the spiral ramp is being dismantled.');
+    if (prev.casing > STRAIGHT_TOP && st.casing <= STRAIGHT_TOP) add(t, 'Finished casing line reaches 60 m; the straight ramp starts coming down.');
+    if (prev.casing > 0 && st.casing <= 0) add(t, 'Casing complete down to the base; all ramps removed.');
+    const vf = st.T >= T_BUILD[0] && st.T < T_BUILD[1] ? volFrac(st.h) * 100 : 0;
+    while (mi < milestones.length && vf >= milestones[mi]) { add(t, `${milestones[mi]} % of the stone is in place (height ${st.h.toFixed(0)} m, year ${st.year.toFixed(1)}).`); mi++; }
+    prev = st;
+  }
+  return ev.sort((a, b) => a.t - b.t);
+}
+function buildTimelineDoc(meta) {
+  const events = buildEvents();
+  const steps = STEPS.map((s, i) => ({ step: i + 1, key: s.key, title: s.title, start: +(s.t0 * DURATION).toFixed(1), end: +(s.t1 * DURATION).toFixed(1), summary: s.text }));
+  const shots = SHOTS.map((s, i) => ({ shot: i + 1, start: +s.t0.toFixed(1), end: +s.t1.toFixed(1), duration: +(s.t1 - s.t0).toFixed(1), view: s.view, title: s.label, camera: s.camera, on_screen: s.action, at_start: facts(s.t0), at_end: facts(Math.min(s.t1, DURATION - 0.01)) }));
+  const json = { video: meta, steps, shots, events };
+  let md = `# Raising the Great Pyramid: video timeline\n\n`;
+  md += `- **Video file:** \`${meta.file}\`\n- **Format:** ${meta.width}×${meta.height}, ${meta.fps} fps, ${tc(meta.duration_s)} (${meta.duration_s} s)\n`;
+  md += `- **Playback:** the animation runs at 1× from start to finish. Screen time is not proportional to years of work: the upper courses go faster on screen because they hold little stone. Use the *year* figures below for narration.\n`;
+  md += `- **Picture:** the 3D scene only, with no captions or interface. People are stick figures at true scale (1.7 m).\n\n`;
+  md += `## Steps\n\n| Start | End | Step | What happens |\n|---|---|---|---|\n`;
+  steps.forEach(s => { md += `| ${tc(s.start)} | ${tc(s.end)} | ${s.key === 'done' ? 'Final view: ' + s.title : s.step + '. ' + s.title} | ${s.summary} |\n`; });
+  md += `\n## Shot list\n\n| # | Start | End | View | Shot |\n|---|---|---|---|---|\n`;
+  shots.forEach(s => { md += `| ${s.shot} | ${tc(s.start)} | ${tc(s.end)} | ${s.view} | ${s.title} |\n`; });
+  md += `\n## Shot details\n`;
+  shots.forEach(s => {
+    md += `\n### ${s.shot}. ${tc(s.start)} – ${tc(s.end)} · ${s.title} (${s.duration} s, ${s.view})\n\n`;
+    md += `- **Step:** ${s.at_start.step}${s.at_end.step !== s.at_start.step ? ` → ${s.at_end.step}` : ''}\n`;
+    md += `- **Camera:** ${s.camera}\n- **On screen:** ${s.on_screen}\n`;
+    md += `- **Status:** year ${s.at_start.year} → ${s.at_end.year}; height ${s.at_start.height_m} m → ${s.at_end.height_m} m; stone in place ${s.at_start.stone_laid_pct} % → ${s.at_end.stone_laid_pct} %; blocks ≈ ${s.at_start.blocks_placed_est.toLocaleString('en-US')} → ${s.at_end.blocks_placed_est.toLocaleString('en-US')}\n`;
+  });
+  md += `\n## Events\n\n| Time | Event |\n|---|---|\n`;
+  events.forEach(e => { md += `| ${tc(e.t)} | ${e.text} |\n`; });
+  md += `\n## Key numbers for narration\n\n`;
+  md += [
+    'Base 230.3 m, original height 146.6 m, face slope 51.8° (rise 7 : run 5½).',
+    'Volume ≈ 2.59 million m³, mass ≈ 6 million t, ≈ 2.3 million blocks averaging ≈ 2.5 t.',
+    'The lowest 60 m (41 % of the height) hold ≈ 80 % of the stone; the top 14 m hold ≈ 0.1 %.',
+    'Sledges on wetted clay and timber tracks: friction ≈ 0.25. A 2.8 t load on a 1 : 10 ramp needs ≈ 9.6 kN of pull, about 26 haulers.',
+    'Straight ramp: 20 m wide, 1 : 10, up to 60 m high and ≈ 600 m long, ≈ 360,000 m³ (≈ 14 % of the pyramid); two lanes up, one down.',
+    'A straight ramp to the very top would be ≈ 1.5 km long and hold ≈ 2.1 million m³, nearly as much as the pyramid itself.',
+    'Spiral ramp: 6 m wide, 1 : 8, built on the stepped faces from 60 m to 132 m, ≈ 580 m long, ≈ 15,000 m³.',
+    'Granite chamber beams of 25–80 t: a 44 t beam needs ≈ 400 haulers, a 65 t beam ≈ 590.',
+    'Required delivery rate: ≈ 60 blocks per hour (one a minute) in the lower phase, ≈ 25 per hour on the spiral.',
+    'Peak workforce ≈ 18,000 (quarrying ≈ 6,000, hauling ≈ 1,700, setting ≈ 800, ramps ≈ 2,000, water/tools/carpentry ≈ 1,500, food/housing/admin ≈ 6,000).',
+    'Schedule ≈ 20 years: 1.5 survey and levelling, 10.2 lower courses, 6.3 upper courses, 0.6 top and capstone, 1.4 finishing.',
+  ].map(x => `- ${x}`).join('\n') + '\n';
+  return { md, json };
+}
+
+// ============================================================
+// Recording: deterministic frame stepping + WebCodecs H.264 → MP4, uploaded to the local server
+// ============================================================
+const recorder = { progress: 0, done: false, error: null, codec: null };
+async function upload(name, body, type) {
+  const r = await fetch(`/upload?name=${encodeURIComponent(name)}`, { method: 'POST', body, headers: { 'Content-Type': type } });
+  if (!r.ok) throw new Error(`upload ${name}: ${r.status}`);
+}
+async function record({ fps = 30, width = 1920, height = 1080, bitrate = 16e6, file = 'pyramid_construction.mp4' } = {}) {
+  try {
+    const { Muxer, ArrayBufferTarget } = await import('https://cdn.jsdelivr.net/npm/mp4-muxer@5.1.3/+esm');
+    renderer.setPixelRatio(1); renderer.setSize(width, height, false);
+    camera.aspect = width / height; camera.updateProjectionMatrix();
+    let cfg = null;
+    for (const codec of ['avc1.640033', 'avc1.640028', 'avc1.4d0028']) {
+      const c = { codec, width, height, bitrate, framerate: fps, avc: { format: 'avc' } };
+      if ((await VideoEncoder.isConfigSupported(c)).supported) { cfg = c; break; }
+    }
+    if (!cfg) throw new Error('No supported H.264 encoder configuration');
+    recorder.codec = cfg.codec;
+    const muxer = new Muxer({ target: new ArrayBufferTarget(), video: { codec: 'avc', width, height, frameRate: fps }, fastStart: 'in-memory' });
+    const enc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: e => { recorder.error = String(e); } });
+    enc.configure(cfg);
+    const N = Math.round(DURATION * fps), dt = 1 / fps, ch = new MessageChannel();
+    const yieldNow = () => new Promise(r => { ch.port2.onmessage = r; ch.port1.postMessage(0); });
+    director.reset();
+    for (let i = 0; i < N; i++) {
+      if (recorder.error) throw new Error(recorder.error);
+      const t = i * dt; simT = t / DURATION;
+      const st = stateAt(simT); lastState = st;
+      applyState(st, dt);
+      director.apply(t, st, dt);
+      sky.position.copy(camera.position);
+      renderer.render(scene, camera);
+      const frame = new VideoFrame(canvas, { timestamp: Math.round(i * 1e6 / fps), duration: Math.round(1e6 / fps) });
+      enc.encode(frame, { keyFrame: i % (fps * 2) === 0 });
+      frame.close();
+      recorder.progress = (i + 1) / N;
+      while (enc.encodeQueueSize > 6) await new Promise(r => enc.addEventListener('dequeue', r, { once: true }));
+      if (i % 5 === 0) await yieldNow();
+    }
+    await enc.flush(); muxer.finalize();
+    await upload(file, muxer.target.buffer, 'video/mp4');
+    const meta = { file, width, height, fps, frames: N, duration_s: DURATION, codec: cfg.codec };
+    const doc = buildTimelineDoc(meta);
+    await upload('pyramid_timeline.md', doc.md, 'text/markdown');
+    await upload('pyramid_timeline.json', JSON.stringify(doc.json, null, 2), 'application/json');
+    recorder.done = true;
+  } catch (e) { recorder.error = String(e && e.stack || e); }
+}
+
+// ============================================================
+// Main loop
+// ============================================================
+addEventListener('resize', () => { if (RECORD) return; camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing && !scrubbing) {
+    simT = Math.min(1, simT + dt * speed / DURATION);
+    if (simT >= 1) setPlaying(false);
+  }
+  const st = stateAt(simT); lastState = st;
+  applyState(st, playing ? dt * Math.min(speed, 3) : 0);
+  if (camMode === 'cinema') director.apply(simT * DURATION, st, dt);
+  else {
+    updateCamera(dt);
+    controls.autoRotate = simT >= T_FINISH[1] && camMode !== 'follow' && !camAnim;
+    controls.update();
+  }
+  sky.position.copy(camera.position);
+  if (!scrubbing) tl.value = Math.round(simT * 1000);
+  hudTimer -= dt; if (hudTimer <= 0) { updateHUD(st); hudTimer = 0.1; }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+$('loading').remove();
+if (RECORD) { document.body.classList.add('record'); playing = false; }
+else requestAnimationFrame(frame);
+
+// Debug / testing / recording hooks
+window.pyramid = { setT: t => { simT = t; }, play: setPlaying, cam: selectCam, state: () => lastState, shots: SHOTS, timeline: () => buildTimelineDoc({ file: 'pyramid_construction.mp4', width: 1920, height: 1080, fps: 30, duration_s: DURATION }) };
+window.recorder = Object.assign(recorder, { start: opts => { record(opts); return 'started'; } });
+</script>
+</body>
+</html>
